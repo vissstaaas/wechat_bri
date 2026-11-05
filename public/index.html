@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NoteBridge AI — System One Memory Infrastructure</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ts-white: #FEFEFE;
+      --ts-pink: #F386A1;
+      --ts-green: #38B86B;
+      --ts-black: #1E1E1E;
+      --ts-win-bg: #E5E5E5;
+      --ts-win-inner: #FEFEFE;
+    }
+
+    * {
+      border-radius: 0px !important;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--ts-white);
+      color: var(--ts-black);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono-ts {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .ts-giant-heading {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      letter-spacing: -0.05em;
+      line-height: 0.93;
+    }
+
+    .ts-hero-clouds {
+      background:
+        radial-gradient(ellipse 55% 80% at 15% 15%, rgba(236, 72, 153, 0.72) 0%, rgba(236, 72, 153, 0) 70%),
+        radial-gradient(ellipse 50% 75% at 85% 20%, rgba(244, 114, 182, 0.75) 0%, rgba(244, 114, 182, 0) 70%),
+        radial-gradient(ellipse 65% 90% at 50% 10%, rgba(96, 165, 250, 0.78) 0%, rgba(167, 139, 250, 0.35) 55%, rgba(254, 254, 254, 0) 85%),
+        linear-gradient(180deg, #c084fc 0%, #f472b6 30%, #fefefe 90%);
+      position: relative;
+    }
+
+    .ts-noise-overlay {
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.14'/%3E%3C/svg%3E");
+    }
+
+    .ts-os-window {
+      background: var(--ts-win-bg);
+      border: 1px solid var(--ts-black);
+      box-shadow: 3px 3px 0px rgba(30, 30, 30, 0.92);
+      padding: 3px;
+    }
+
+    .ts-os-window-inner {
+      border: 1px solid #888;
+      background: var(--ts-win-bg);
+    }
+
+    .ts-os-titlebar {
+      background: var(--ts-black);
+      color: var(--ts-white);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+
+    .ts-tag-black {
+      background: var(--ts-black);
+      color: var(--ts-white);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      display: inline-block;
+      line-height: 1.2;
+    }
+
+    .ts-chip-btn {
+      background: #D4D4D4;
+      border: 1px solid #525252;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 8px;
+      color: var(--ts-black);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .ts-chip-btn:hover {
+      background: var(--ts-black);
+      color: var(--ts-white);
+    }
+
+    .crop-box { position: relative; }
+    .crop-tl, .crop-tr, .crop-bl, .crop-br {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      border-color: currentColor;
+      pointer-events: none;
+      opacity: 0.65;
+    }
+    .crop-tl { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; }
+    .crop-tr { top: 0; right: 0; border-top: 1px solid; border-right: 1px solid; }
+    .crop-bl { bottom: 0; left: 0; border-bottom: 1px solid; border-left: 1px solid; }
+    .crop-br { bottom: 0; right: 0; border-bottom: 1px solid; border-right: 1px solid; }
+
+    .vertical-b64 {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      color: #555;
+      user-select: none;
+    }
+
+    .ts-cta-link {
+      font-size: clamp(1.5rem, 2.8vw, 2.35rem);
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      border-bottom: 3px solid var(--ts-black);
+      padding-bottom: 2px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ts-cta-link:hover {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =================================================================== -->
+  <!-- GLOBAL TOP FLUSH NAVIGATION BAR (SHARED ACROSS ALL 3 PRODUCT VIEWS) -->
+  <!-- =================================================================== -->
+  <header class="w-full flex items-start justify-between px-0 fixed top-0 left-0 right-0 z-50 pointer-events-none">
+    <button onclick="navigateView('landing')" class="pointer-events-auto bg-[#FEFEFE] border-b border-r border-[#1E1E1E]/25 px-4 py-2 text-xs font-semibold tracking-tight flex items-center gap-2 hover:bg-[#E5E5E5]">
+      <span>NoteBridge AI</span>
+      <span id="global-live-dot" class="w-1.5 h-1.5 bg-emerald-600 inline-block"></span>
+    </button>
+
+    <nav class="pointer-events-auto hidden sm:flex items-center bg-[#FEFEFE] border-b border-x border-[#1E1E1E]/25 divide-x divide-[#1E1E1E]/20 text-xs font-medium shadow-sm">
+      <button onclick="navigateView('landing')" id="nav-btn-landing" class="px-4 py-2 bg-[#1E1E1E] text-[#FEFEFE] font-semibold">
+        Overview
+      </button>
+      <button onclick="navigateView('quickstart')" id="nav-btn-quickstart" class="px-4 py-2 hover:bg-[#E5E5E5]">
+        Quickstart
+      </button>
+      <button onclick="navigateView('playground')" id="nav-btn-playground" class="px-4 py-2 hover:bg-[#E5E5E5]">
+        Playground & Console
+      </button>
+      <button onclick="navigateView('landing', 'multi-platform')" class="px-4 py-2 hover:bg-[#E5E5E5]">
+        Clients (Win / Mac / iOS)
+      </button>
+    </nav>
+
+    <div class="pointer-events-auto flex items-center">
+      <button onclick="navigateView('playground')" class="bg-[#FEFEFE] border-b border-l border-[#1E1E1E]/25 px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 hover:bg-[#E5E5E5]">
+        <span class="font-mono-ts">->]</span> <span id="top-session-label">Playground Console</span>
+      </button>
+      <button onclick="navigateView('quickstart')" class="bg-[#1E1E1E] text-[#FEFEFE] border-b border-[#1E1E1E] px-4 py-2 text-xs font-medium hover:bg-black">
+        Quickstart
+      </button>
+    </div>
+  </header>
+
+  <!-- =================================================================== -->
+  <!-- STAGE 1: PRODUCT LANDING PAGE (纯粹产品介绍官网 — 默认视图)          -->
+  <!-- =================================================================== -->
+  <main id="view-landing" class="block">
+    
+    <!-- 1A. HERO SECTION -->
+    <section class="ts-hero-clouds ts-noise-overlay min-h-[720px] flex flex-col justify-between relative border-b border-[#1E1E1E]/20 pt-14">
+      <div class="max-w-5xl mx-auto w-full px-6 pt-10 pb-6 flex flex-col items-center">
+        
+        <div class="ts-os-window w-full max-w-[340px]">
+          <div class="ts-os-titlebar">
+            <span>Nov 5, 2026 • NoteBridge Release</span>
+          </div>
+          <div class="ts-os-window-inner p-3.5 text-center font-mono-ts text-xs leading-relaxed">
+            <p>Dual-Mode WeChat Agent + Siri Memory Bridge 🍏</p>
+            <button onclick="navigateView('quickstart')" class="mt-2 underline text-[11px] font-semibold">
+              Start 2-Step Binding ->
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-10 font-mono-ts text-xs tracking-tight text-[#1E1E1E] text-center">
+          Introducing NB.OS1 ........................ Intelligence beyond chat & folders
+        </div>
+
+        <div class="relative w-full mt-6 flex items-center justify-center">
+          <div class="vertical-b64 hidden sm:block absolute left-0 top-2 max-h-[300px] overflow-hidden">
+            Vm0weE1HRnRVWGRPVldScFRUSm9iMVJVU2pSVlZsbDNWMnQwYWxKc2NIaFZiVEZIVkd4YWRWRnJaRmRTYkVwRVZsWmFWMVpWTVVWaGVqQTk=
+          </div>
+
+          <h1 class="ts-giant-heading text-center text-[clamp(2.8rem,7.2vw,6.2rem)] max-w-4xl mx-auto px-4 text-[#1E1E1E]">
+            The First<br/>
+            (Lazy) Memory<br/>
+            Bridge; Gives<br/>
+            WeChat The<br/>
+            Power Of Siri
+          </h1>
+        </div>
+
+        <div class="mt-12 mb-10 flex flex-wrap items-center justify-center gap-14 sm:gap-24">
+          <button onclick="navigateView('quickstart')" class="ts-cta-link">
+            Quickstart
+          </button>
+          <button onclick="navigateView('playground')" class="ts-cta-link">
+            Enter Playground
+          </button>
+        </div>
+      </div>
+
+      <div class="w-full px-4 py-2 flex items-center justify-between font-mono-ts text-[11px] text-[#1E1E1E]/70">
+        <span>∵ ⩆</span>
+        <span>⩆ ∵</span>
+      </div>
+    </section>
+
+    <!-- 1B. PINK EDITORIAL & ARCHITECTURE SHOWCASE SECTION -->
+    <section class="bg-[#F386A1] text-[#1E1E1E] px-4 sm:px-10 py-12 border-b border-[#1E1E1E]">
+      
+      <div class="max-w-6xl mx-auto border border-[#1E1E1E] relative min-h-[520px] overflow-hidden bg-[#F386A1]">
+        <canvas id="dither-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+
+        <div class="relative z-10 flex items-center justify-between p-2">
+          <span class="ts-tag-black">NB.AI.OS1</span>
+        </div>
+
+        <div class="relative z-10 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          
+          <div class="lg:col-span-9 relative space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="ts-os-window">
+                <div class="ts-os-titlebar"><span>01. INPUT</span></div>
+                <div class="ts-os-window-inner p-3 font-mono-ts">
+                  <div class="text-base font-bold bg-[#1E1E1E] text-white inline-block px-1.5 py-0.5">WeChat</div>
+                  <div class="text-xs mt-2">随手丢文字/图片/提问</div>
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    <span class="ts-chip-btn">❖ 零 #标签</span>
+                    <span class="ts-chip-btn">❖ 零口令</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ts-os-window">
+                <div class="ts-os-titlebar"><span>02. DUAL ROUTER</span></div>
+                <div class="ts-os-window-inner p-3 font-mono-ts">
+                  <div class="text-base font-bold bg-[#1E1E1E] text-white inline-block px-1.5 py-0.5">NB.OS1</div>
+                  <div class="text-xs mt-2">AI 问答 + 自动分类归档</div>
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    <span class="ts-chip-btn">❖ DeepSeek</span>
+                    <span class="ts-chip-btn">❖ RLCD</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ts-os-window">
+                <div class="ts-os-titlebar"><span>03. NATIVE MEMORY</span></div>
+                <div class="ts-os-window-inner p-3 font-mono-ts">
+                  <div class="text-base font-bold bg-[#1E1E1E] text-white inline-block px-1.5 py-0.5">Siri & Notes</div>
+                  <div class="text-xs mt-2">iCloud 云上贵州双向同步</div>
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    <span class="ts-chip-btn">❖ 嘿 Siri</span>
+                    <span class="ts-chip-btn">❖ 自定义分类</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ts-os-window mt-4">
+              <div class="ts-os-titlebar">
+                <span>NoteBridgeAI // Calibrated Dual-Mode Router</span>
+                <span>SYSTEM 1</span>
+              </div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-5 font-mono-ts text-xs space-y-3.5">
+                <div class="flex items-center justify-between border-b border-[#1E1E1E]/15 pb-2">
+                  <span class="ts-tag-black">Capabilities Matrix</span>
+                  <button onclick="navigateView('playground')" class="underline font-bold">去 Playground 亲自试玩 -></button>
+                </div>
+
+                <div class="space-y-2.5">
+                  <div class="grid grid-cols-12 items-center gap-2">
+                    <div class="col-span-4"><span class="ts-tag-black">🔑 账号密码速查</span></div>
+                    <div class="col-span-6 h-2 bg-[#E5E5E5] border border-[#1E1E1E]"><div class="h-full bg-[#1E1E1E]" style="width:98%"></div></div>
+                    <div class="col-span-2 text-right font-bold">p = 0.98</div>
+                  </div>
+                  <div class="grid grid-cols-12 items-center gap-2">
+                    <div class="col-span-4"><span class="ts-tag-black">☑️ 待办与取件码</span></div>
+                    <div class="col-span-6 h-2 bg-[#E5E5E5] border border-[#1E1E1E]"><div class="h-full bg-[#1E1E1E]" style="width:95%"></div></div>
+                    <div class="col-span-2 text-right font-bold">p = 0.95</div>
+                  </div>
+                  <div class="grid grid-cols-12 items-center gap-2">
+                    <div class="col-span-4"><span class="ts-tag-black">🤖 原生 AI 问答 + RAG</span></div>
+                    <div class="col-span-6 h-2 bg-[#E5E5E5] border border-[#1E1E1E]"><div class="h-full bg-[#1E1E1E]" style="width:100%"></div></div>
+                    <div class="col-span-2 text-right font-bold">100% 保留</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-3 flex flex-col justify-between space-y-6">
+            <div class="border border-[#1E1E1E] bg-[#F386A1]/90 p-0.5">
+              <div class="ts-os-titlebar"><span>Clock Tool 1.1</span></div>
+              <div class="p-3 font-mono-ts text-xs border border-[#1E1E1E]/40">
+                <div>Thursday, Nov 5, 2026</div>
+                <div id="ts-clock" class="text-sm font-bold mt-0.5">17:00:00</div>
+                <div class="mt-2 text-[10px] tracking-widest">.  *   .    :  .</div>
+              </div>
+            </div>
+
+            <div class="border border-[#1E1E1E] bg-[#F386A1]/90 p-0.5 self-end w-40">
+              <div class="ts-os-titlebar">
+                <span>Glider 1.1</span>
+                <span class="cursor-pointer" onclick="stepGlider()">STEP</span>
+              </div>
+              <div class="p-2.5 font-mono-ts text-xs border border-[#1E1E1E]/40 flex flex-col items-center">
+                <div id="glider-grid" class="grid grid-cols-3 gap-0.5 border border-[#1E1E1E] p-0.5 bg-[#F386A1]"></div>
+                <div class="mt-2 text-[11px] w-full text-left">Game of Life</div>
+              </div>
+            </div>
+
+            <div class="border border-[#1E1E1E] bg-[#F386A1]/90 p-0.5">
+              <div class="ts-os-titlebar"><span>NoteBridge AI</span></div>
+              <div class="p-2.5 font-mono-ts text-[11px] leading-snug border border-[#1E1E1E]/40">
+                Version 1.0<br/>
+                ©2026. All rights reserved.<br/>
+                WeChat ⇄ Apple Notes.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Editorial Manifesto -->
+      <div class="max-w-6xl mx-auto mt-20 crop-box py-10 px-6">
+        <div class="crop-tl"></div><div class="crop-tr"></div><div class="crop-bl"></div><div class="crop-br"></div>
+        <h2 class="ts-giant-heading text-center text-[clamp(2.4rem,6vw,5.4rem)] text-[#1E1E1E]">
+          We Took The<br/>
+          Opposite Productivity<br/>
+          Direction
+        </h2>
+      </div>
+
+      <div class="max-w-6xl mx-auto mt-10 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div class="md:col-span-4 border-l border-[#1E1E1E] pl-4">
+          <span class="font-mono-ts text-xs text-[#1E1E1E]/80">Not Another Note Island</span>
+          <p class="mt-8 text-base sm:text-lg leading-snug font-medium">
+            如果换掉苹果原生《备忘录》，你就失去了随时对着 iPhone 喊「嘿 Siri」调取记忆的特权。因此我们坚持以原生备忘录为唯一终点介质，让 AI 在中间替你完成繁琐的分类与排版。
+          </p>
+        </div>
+
+        <div class="md:col-span-4 border-l border-[#1E1E1E] pl-4">
+          <span class="font-mono-ts text-xs text-[#1E1E1E]/80">Keep Your AI Agent Intact</span>
+          <p class="mt-8 text-base sm:text-lg leading-snug font-medium">
+            你的微信机器人不该沦为死板的传话筒。在 NoteBridge 双模引擎下，它既是随手丢随手存的备忘录管家，又是能查你真实备忘录、能陪你写代码聊天的全功能 AI Agent。
+          </p>
+        </div>
+
+        <div class="md:col-span-4 pl-4 font-mono-ts text-[10px] leading-tight text-[#1E1E1E]/75 break-all select-none">
+          <div class="mb-3 text-xs text-[#1E1E1E]">[B.64]</div>
+          ZmxvYXQgUV9yc3FydCggZmxvYXQgbnVtYmVyICkKewoJbG9uZyBpOw91b25nIGkgPSAqICggbG9uZyAqICkgJm51bWJlcjsKCXkgPSB5ICogKCAxLjVGVg9tIC0gKCB4MiAqIHkgKiB5ICkgKTsKCXJldHVybiB5Owp9CUNsYXNzIE5vdGVCcmlkZ2VTeXN0ZW1PbmU6ImlDbG91ZC5jb20uY24i
+        </div>
+      </div>
+
+      <!-- Multi-Platform Spec Section -->
+      <div id="multi-platform" class="max-w-6xl mx-auto mt-20 crop-box py-8 px-4">
+        <div class="crop-tl"></div><div class="crop-tr"></div><div class="crop-bl"></div><div class="crop-br"></div>
+        <h2 class="ts-giant-heading text-[clamp(2rem,4.5vw,3.8rem)] text-[#1E1E1E]">
+          Cloud Core + Native Clients<br/>
+          For Windows, macOS & iOS.
+        </h2>
+      </div>
+
+      <div class="max-w-6xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="border border-[#1E1E1E] p-5 flex flex-col justify-between min-h-[260px]">
+          <div>
+            <span class="ts-tag-black">Windows Desktop</span>
+            <p class="text-xs font-mono-ts mt-3 text-[#1E1E1E]/80">Tauri 2.0 轻量级系统托盘端</p>
+          </div>
+          <div>
+            <div class="ts-giant-heading text-4xl">8.2 MB</div>
+            <p class="text-xs mt-2 font-medium">开机静默驻留右下角托盘，支持 `Alt + S` 快捷键将电脑剪贴板秒存进 iPhone 备忘录。</p>
+          </div>
+        </div>
+
+        <div class="border border-[#1E1E1E] p-5 flex flex-col justify-between min-h-[260px]">
+          <div>
+            <span class="ts-tag-black">macOS MenuBar</span>
+            <p class="text-xs font-mono-ts mt-3 text-[#1E1E1E]/80">AppleScript / JXA 原生图文直写</p>
+          </div>
+          <div>
+            <div class="ts-giant-heading text-4xl">100% 图文</div>
+            <p class="text-xs mt-2 font-medium">突破网页版 iCloud 无法上传图片附件的限制，在 Mac 菜单栏直接将微信图片写进原生备忘录正文。</p>
+          </div>
+        </div>
+
+        <div class="border border-[#1E1E1E] p-5 flex flex-col justify-between min-h-[260px]">
+          <div>
+            <span class="ts-tag-black">iOS Client</span>
+            <p class="text-xs font-mono-ts mt-3 text-[#1E1E1E]/80">App Intents + 灵动岛 + Siri</p>
+          </div>
+          <div>
+            <div class="ts-giant-heading text-4xl">10s 扫码</div>
+            <p class="text-xs mt-2 font-medium">手机端一键扫码绑定微信与续期 iCloud 验证码，日常完全隐形，随时呼唤 Siri 检索。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Callout to Quickstart -->
+      <div class="max-w-6xl mx-auto mt-16 crop-box py-10 px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div class="crop-tl"></div><div class="crop-tr"></div><div class="crop-bl"></div><div class="crop-br"></div>
+        <div class="ts-giant-heading text-3xl sm:text-5xl">Ready To Connect?</div>
+        <div class="flex items-center gap-6">
+          <span class="font-mono-ts text-xl">▶▶▶</span>
+          <button onclick="navigateView('quickstart')" class="ts-cta-link">Start Quickstart</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bg-[#1E1E1E] text-[#FEFEFE] px-4 sm:px-10 py-12">
+      <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-4 font-mono-ts text-xs text-neutral-400">
+        <span>NoteBridge AI © 2026 · System One Memory Infrastructure</span>
+        <div class="flex gap-6">
+          <button onclick="navigateView('quickstart')" class="hover:text-white underline">Quickstart</button>
+          <button onclick="navigateView('playground')" class="hover:text-white underline">Playground & Console</button>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- =================================================================== -->
+  <!-- STAGE 2: QUICKSTART ONBOARDING WIZARD (扫码即登录 · 两步建桥向导页)     -->
+  <!-- =================================================================== -->
+  <main id="view-quickstart" class="hidden min-h-screen bg-[#F386A1] text-[#1E1E1E] pt-16 pb-16 px-4 sm:px-10">
+    <div class="max-w-4xl mx-auto">
+      
+      <div class="crop-box py-6 px-4 mb-6">
+        <div class="crop-tl"></div><div class="crop-tr"></div><div class="crop-bl"></div><div class="crop-br"></div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <span class="ts-tag-black">NB.OS1 // PASSWORDLESS QUICKSTART</span>
+            <h1 class="ts-giant-heading text-4xl sm:text-5xl mt-2">Scan Twice. Bridge Forever.</h1>
+            <p class="font-mono-ts text-xs mt-2 text-[#1E1E1E]/80">免注册账号密码：微信扫码即自动完成身份识别，并解锁你的专属 Playground 后台。</p>
+          </div>
+          <button onclick="navigateView('playground')" class="self-start sm:self-auto bg-[#1E1E1E] text-[#FEFEFE] px-4 py-2.5 font-mono-ts text-xs font-bold hover:bg-black">
+            已识别连接 ➔ 直接进入 Playground
+          </button>
+        </div>
+      </div>
+
+      <!-- Step Indicator Bar -->
+      <div class="grid grid-cols-3 border border-[#1E1E1E] bg-[#E5E5E5] font-mono-ts text-xs mb-8">
+        <button onclick="switchWizardStep(1)" id="wiz-tab-1" class="p-3 text-left border-r border-[#1E1E1E] bg-[#1E1E1E] text-[#FEFEFE] font-bold">
+          STEP 01 // 微信扫码身份登录与绑定
+        </button>
+        <button onclick="switchWizardStep(2)" id="wiz-tab-2" class="p-3 text-left border-r border-[#1E1E1E] hover:bg-[#D4D4D4]">
+          STEP 02 // iCloud 云上贵州授权
+        </button>
+        <button onclick="switchWizardStep(3)" id="wiz-tab-3" class="p-3 text-left hover:bg-[#D4D4D4]">
+          STEP 03 // 建桥完成 ➔ 解锁控制台
+        </button>
+      </div>
+
+      <!-- WIZARD STEP 1: WECHAT QR CODE -->
+      <div id="wiz-panel-1" class="ts-os-window">
+        <div class="ts-os-titlebar">
+          <span>STEP 01 // WECHAT CLAWBOT IDENTITY & CHANNEL BINDING</span>
+          <span id="wiz-wx-badge">CHECKING...</span>
+        </div>
+        <div class="ts-os-window-inner bg-[#FEFEFE] p-6 sm:p-8 font-mono-ts grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          
+          <div class="md:col-span-5 flex flex-col items-center">
+            <div id="wiz-qr-box" class="border-2 border-[#1E1E1E] p-3 w-56 h-56 bg-white flex items-center justify-center text-center">
+              <span class="text-xs text-neutral-500 px-4">点击下方「生成真实二维码」获取腾讯官方扫码凭证</span>
+            </div>
+            <button onclick="loadWizardWechatQr()" class="mt-3 w-56 border border-[#1E1E1E] bg-[#E5E5E5] py-2 text-xs font-bold hover:bg-[#1E1E1E] hover:text-white">
+              ↻ 生成 / 刷新真实微信二维码
+            </button>
+          </div>
+
+          <div class="md:col-span-7 space-y-4 text-xs">
+            <span class="ts-tag-black">PASSWORDLESS WECHAT LOGIN</span>
+            <h3 class="text-xl font-sans font-semibold tracking-tight">扫码即登录：无需注册账号，微信 UserID 即你的专属身份</h3>
+            
+            <div id="wiz-wx-detected-box" class="p-3.5 bg-[#38B86B]/20 border border-[#1E1E1E] space-y-1">
+              <div class="font-bold">✓ 已自动识别到你的微信绑定会话：</div>
+              <div id="wiz-wx-account-text" class="text-[11px]">账号: 4547d85e4cb2-im-bot</div>
+              <div class="text-[11px] text-neutral-700">你可以直接点击下方按钮进入下一步，或重新扫码切换微信。</div>
+            </div>
+
+            <div class="pt-3 flex gap-3">
+              <button onclick="switchWizardStep(2)" class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black">
+                微信身份已确认，进入 STEP 02 (iCloud 授权) ->
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- WIZARD STEP 2: ICLOUD.COM.CN BINDING -->
+      <div id="wiz-panel-2" class="hidden ts-os-window">
+        <div class="ts-os-titlebar">
+          <span>STEP 02 // AUTHORIZE APPLE NOTES (SETUP.ICLOUD.COM.CN)</span>
+          <span>CLOUDKIT WEB</span>
+        </div>
+        <div class="ts-os-window-inner bg-[#FEFEFE] p-6 sm:p-8 font-mono-ts grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          
+          <div class="md:col-span-5 space-y-3">
+            <div class="border-2 border-[#1E1E1E] p-4 bg-[#E5E5E5] space-y-2.5 text-xs">
+              <div class="flex justify-between border-b border-[#1E1E1E]/20 pb-1.5">
+                <span class="font-bold">云上贵州节点</span>
+                <span class="ts-tag-black">ICLOUD.COM.CN</span>
+              </div>
+              <div class="flex justify-between">
+                <span>已同步备忘录:</span>
+                <span id="wiz-note-count" class="font-bold">86 篇 (.md)</span>
+              </div>
+              <div class="flex justify-between">
+                <span>已同步图片附件:</span>
+                <span id="wiz-att-count" class="font-bold">46 个</span>
+              </div>
+              <div class="flex justify-between">
+                <span>分类本状态:</span>
+                <span class="text-emerald-800 font-bold">● 已就绪</span>
+              </div>
+            </div>
+
+            <button onclick="triggerRealIcloudSync(this)" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] py-2 text-xs font-bold hover:bg-[#1E1E1E] hover:text-white">
+              ↻ 测试执行一次 iCloud Pull & Push
+            </button>
+            <button onclick="triggerIcloudRelogin()" class="w-full border border-[#1E1E1E] bg-[#FEFEFE] py-2 text-xs hover:bg-[#E5E5E5]">
+              🔑 重新弹出云上贵州苹果登录窗 (如需换号)
+            </button>
+          </div>
+
+          <div class="md:col-span-7 space-y-4 text-xs">
+            <span class="ts-tag-black">APPLE NOTES VAULT</span>
+            <h3 class="text-xl font-sans font-semibold tracking-tight">连接你的 iPhone 原生备忘录，打通 Siri 语音检索</h3>
+
+            <div class="p-3.5 bg-[#38B86B]/20 border border-[#1E1E1E] space-y-1">
+              <div class="font-bold">✓ 已内置中国大陆（云上贵州 `.icloud.com.cn`）专属协议补丁</div>
+              <div class="text-[11px] text-neutral-700">你的真实备忘录库已拉取就绪，无需重复登录即可直接进入 Playground！</div>
+            </div>
+
+            <div class="pt-3 flex gap-3">
+              <button onclick="switchWizardStep(1)" class="border border-[#1E1E1E] px-4 py-3 text-xs">
+                <- 上一步
+              </button>
+              <button onclick="switchWizardStep(3)" class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black">
+                完成验证，进入 STEP 03 ->
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- WIZARD STEP 3: READY TO ENTER PLAYGROUND -->
+      <div id="wiz-panel-3" class="hidden ts-os-window">
+        <div class="ts-os-titlebar">
+          <span>STEP 03 // BRIDGE ESTABLISHED (WECHAT ⇄ SIRI NOTES)</span>
+          <span>100% READY</span>
+        </div>
+        <div class="ts-os-window-inner bg-[#38B86B] p-8 font-mono-ts text-center space-y-5">
+          <span class="ts-tag-black">BRIDGE ONLINE</span>
+          <h2 class="ts-giant-heading text-4xl sm:text-5xl text-[#1E1E1E]">
+            Your Dual-Mode Bridge<br/>Is Live And Ready.
+          </h2>
+          <p class="text-xs max-w-xl mx-auto leading-relaxed text-[#1E1E1E]">
+            微信身份与 iPhone 备忘录（云上贵州）总桥梁已打通！现在进入你专属的 <strong>Playground & 真实管理后台</strong>，亲自操演双模问答、备忘录自动分类与自定义分类本管理。
+          </p>
+          <div class="pt-2">
+            <button onclick="navigateView('playground')" class="bg-[#1E1E1E] text-[#FEFEFE] px-8 py-4 text-sm font-bold hover:bg-black shadow-lg">
+              ENTER PLAYGROUND & ADMIN CONSOLE ->
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- =================================================================== -->
+  <!-- STAGE 3: PLAYGROUND & REAL BACKEND CONSOLE (真正功能页与后台管理)      -->
+  <!-- =================================================================== -->
+  <main id="view-playground" class="hidden min-h-screen bg-[#E5E5E5] text-[#1E1E1E] pt-14">
+    
+    <!-- Console Sub-Header Bar with WeChat Session Identity -->
+    <div class="bg-[#1E1E1E] text-[#FEFEFE] px-4 sm:px-8 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-mono-ts text-xs border-b border-[#1E1E1E]">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <span class="bg-[#F386A1] text-[#1E1E1E] px-2 py-0.5 font-bold">NB.OS1 CONSOLE</span>
+        <span id="console-top-summary">WX_SESSION: o9cq80... · ICLOUD.CN: 86 NOTES · ONLINE</span>
+      </div>
+
+      <!-- Console Sub-Tabs: Playground | Vaults & Rules | Drive & Photo Bridge | Backend & Logs -->
+      <div class="flex flex-wrap gap-1.5">
+        <button onclick="switchConsoleTab('operator')" id="ctab-operator" class="px-3 py-1 bg-[#FEFEFE] text-[#1E1E1E] font-bold">
+          01. Playground 实时操演
+        </button>
+        <button onclick="switchConsoleTab('vaults')" id="ctab-vaults" class="px-3 py-1 border border-white/30 text-white hover:bg-white/10">
+          02. 分类本与自定义规则 (Vaults)
+        </button>
+        <button onclick="switchConsoleTab('drive')" id="ctab-drive" class="px-3 py-1 border border-[#F386A1] text-[#F386A1] hover:bg-white/10 font-bold">
+          03. iCloud 云盘与图库互通 ★
+        </button>
+        <button onclick="switchConsoleTab('backend')" id="ctab-backend" class="px-3 py-1 border border-white/30 text-white hover:bg-white/10">
+          04. 后台状态与日志 (Logs)
+        </button>
+      </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-4 sm:p-8">
+
+      <!-- =============================================================== -->
+      <!-- CONSOLE TAB 1: PLAYGROUND (双模实时操演 + Siri 真实备忘录检索)     -->
+      <!-- =============================================================== -->
+      <div id="cpanel-operator" class="space-y-6">
+        
+        <div class="border border-[#1E1E1E] bg-[#FEFEFE] p-3.5 font-mono-ts text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <span class="ts-tag-black">ACTIVE ROUTING MODE</span>
+            <span class="ml-2 font-semibold">切换微信机器人的响应策略（手机微信实时同步生效）：</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="setBotMode('DUAL_AUTO')" id="mode-btn-DUAL_AUTO" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold">
+              ● DUAL_AUTO (智能双模：问答走AI / 随手记走备忘录)
+            </button>
+            <button onclick="setBotMode('AGENT_FIRST')" id="mode-btn-AGENT_FIRST" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
+              AGENT_FIRST (全量 AI 问答)
+            </button>
+            <button onclick="setBotMode('NOTES_FIRST')" id="mode-btn-NOTES_FIRST" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
+              NOTES_FIRST (纯静默归档)
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Left: Input Terminal -->
+          <div class="lg:col-span-5 ts-os-window">
+            <div class="ts-os-titlebar">
+              <span>PLAYGROUND.INPUT // 发送测试消息</span>
+              <span>[LIVE]</span>
+            </div>
+            <div class="ts-os-window-inner bg-[#FEFEFE] p-4 font-mono-ts space-y-4">
+              <div>
+                <div class="text-[11px] font-bold mb-1.5">A. 测试「懒人无脑归档进 iPhone 备忘录」：</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button onclick="quickFillAndRun('家里宽带续费户号 0571-88992211 密码 Aa889900')" class="ts-chip-btn">❖ 丢账号密码</button>
+                  <button onclick="quickFillAndRun('明天下午4点去丰巢拿顺丰快递 取件码 5-2-1088')" class="ts-chip-btn">❖ 丢取件码待办</button>
+                  <button onclick="quickFillAndRun('https://github.com/tencent/openclaw 周末研究这个微信SDK')" class="ts-chip-btn">❖ 丢网页链接</button>
+                </div>
+              </div>
+
+              <div>
+                <div class="text-[11px] font-bold mb-1.5">B. 测试「原生 AI 问答 Agent + 检索真备忘录 + 提取 iCloud 云盘文件」：</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button onclick="quickFillAndRun('帮我查一下我备忘录里转专业邢小东老师办公室在哪？')" class="ts-chip-btn">❖ 问 AI 查真备忘录</button>
+                  <button onclick="quickFillAndRun('查一下我 iCloud 云盘里有什么简历和文件？')" class="ts-chip-btn">❖ 问 AI 查 iCloud 云盘</button>
+                  <button onclick="quickFillAndRun('把我 iCloud 云盘里的艾梦凯个人简历发给我')" class="ts-chip-btn bg-[#F386A1]/30 font-bold">❖ 让 AI 把云盘简历发我微信</button>
+                  <button onclick="switchConsoleTab('drive')" class="ts-chip-btn bg-[#38B86B]/30 font-bold">❖ 打开「图库⇄备忘录」直传面板 -></button>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-[#1E1E1E]/20">
+                <label class="block text-[11px] font-bold mb-1">自定义输入（支持任意随手记或向 AI 提问）：</label>
+                <textarea id="live-operator-input" rows="3" placeholder="在这里输入任何话..." class="w-full bg-[#E5E5E5] border border-[#1E1E1E] p-2.5 text-xs font-mono-ts focus:outline-none"></textarea>
+
+                <label class="flex items-center gap-2 text-xs mt-2 cursor-pointer select-none">
+                  <input id="chk-push-phone" type="checkbox" class="accent-[#1E1E1E]" />
+                  <span>同时把结果<strong>真实推送到我手机微信上</strong></span>
+                </label>
+
+                <button id="btn-run-sim" onclick="submitRealOperation()" class="mt-3 w-full bg-[#1E1E1E] text-[#FEFEFE] py-2.5 text-xs font-bold hover:bg-black">
+                  RUN // 立即真实执行 ->
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Live Decision Inspector & Siri Real Notes Search -->
+          <div class="lg:col-span-7 space-y-6">
+            
+            <div class="ts-os-window">
+              <div class="ts-os-titlebar">
+                <span>RLCD.OUTPUT // 路由决策与 AI 真实响应</span>
+                <span id="routing-latency">54ms</span>
+              </div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-4 font-mono-ts space-y-3">
+                <div class="flex items-center justify-between border-b border-[#1E1E1E]/20 pb-2 text-xs">
+                  <div>
+                    <span id="route-action-badge" class="ts-tag-black">NOTE_ARCHIVE</span>
+                    <span id="route-target-label" class="ml-2 font-bold">🔑 账号与重要速查.md</span>
+                  </div>
+                  <span id="live-payload" class="text-[11px] text-neutral-600 truncate max-w-[260px]">“英语报名账号 19971518837”</span>
+                </div>
+
+                <!-- Dynamic Probability Bars Container (automatically renders default + custom vaults!) -->
+                <div id="dynamic-prob-bars" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs"></div>
+
+                <div class="pt-2">
+                  <div class="text-[10px] text-neutral-600 mb-1">REAL BOT / AI AGENT RESPONSE:</div>
+                  <div id="live-agent-reply" class="text-xs bg-[#1E1E1E] text-[#FEFEFE] p-3 whitespace-pre-wrap leading-relaxed max-h-[160px] overflow-y-auto">✅ 已自动归入《🔑 账号与重要速查》并同步至 iPhone 备忘录</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ts-os-window">
+              <div class="ts-os-titlebar">
+                <span>SIRI.SEARCH // 检索本地已同步的真实 iPhone 备忘录</span>
+                <span>REAL DATA</span>
+              </div>
+              <div class="ts-os-window-inner bg-[#F386A1]/30 p-4 font-mono-ts space-y-2.5">
+                <div class="flex gap-2">
+                  <input id="siri-search-input" type="text" placeholder="输入关键词测试检索，如: 英语 / 转专业 / 打卡 / 宽带" class="w-full bg-[#FEFEFE] border border-[#1E1E1E] px-3 py-1.5 text-xs font-mono-ts focus:outline-none" onkeydown="if(event.key==='Enter') executeRealSiriSearch()" />
+                  <button onclick="executeRealSiriSearch()" class="bg-[#1E1E1E] text-white px-4 py-1.5 text-xs font-bold shrink-0">
+                    检索真备忘录
+                  </button>
+                </div>
+                <div id="siri-search-results" class="text-xs bg-[#FEFEFE] border border-[#1E1E1E] p-3 max-h-[150px] overflow-y-auto">
+                  在上方输入任意词，直接搜索 `d:\dev\ideas\wechat-notes-bridge\notes\Notes\` 下的真实备忘录。
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =============================================================== -->
+      <!-- CONSOLE TAB 2: VAULTS & CUSTOM RULES (分类库管理与自定义新增规则)   -->
+      <!-- =============================================================== -->
+      <div id="cpanel-vaults" class="hidden space-y-6">
+        
+        <!-- Custom Rule Creator Window -->
+        <div class="ts-os-window">
+          <div class="ts-os-titlebar">
+            <span>VAULT.RULE.CREATOR // + 自定义新增备忘录分类本与匹配规则</span>
+            <span>AUTO-CREATE .MD</span>
+          </div>
+          <div class="ts-os-window-inner bg-[#FEFEFE] p-5 font-mono-ts text-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#1E1E1E]/15 pb-3">
+              <div>
+                <span class="ts-tag-black">CUSTOM VAULT ENGINE</span>
+                <span class="ml-2 font-semibold">添加新分类后，会自动在 iPhone 备忘录里新建对应的笔记，并纳入 AI 概率路由：</span>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="fillCustomRulePreset('💰 记账与报销', '花了, 报销, 发票, 转账, 元, 消费, 账单', false)" class="ts-chip-btn">❖ 填入模板：💰记账与报销</button>
+                <button onclick="fillCustomRulePreset('🏋️ 健身与饮食打卡', '深蹲, 卧推, 有氧, 跑步, 蛋白粉, 体重, 打卡', true)" class="ts-chip-btn">❖ 填入模板：🏋️健身打卡</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-bold mb-1">备忘录标题 (如: 💰 记账与报销):</label>
+                <input id="new-rule-title" type="text" placeholder="例如：💰 记账与报销" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] px-3 py-2 text-xs font-mono-ts" />
+              </div>
+              <div class="md:col-span-5">
+                <label class="block text-[11px] font-bold mb-1">触发关键词 (用逗号或空格分隔):</label>
+                <input id="new-rule-keywords" type="text" placeholder="例如：花了, 报销, 发票, 转账, 元" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] px-3 py-2 text-xs font-mono-ts" />
+              </div>
+              <div class="md:col-span-3 flex items-center gap-2">
+                <label class="flex items-center gap-1.5 text-[11px] cursor-pointer shrink-0">
+                  <input id="new-rule-todo" type="checkbox" class="accent-[#1E1E1E]" />
+                  <span>待办打勾格式</span>
+                </label>
+                <button onclick="createNewVaultRule()" class="flex-1 bg-[#1E1E1E] text-[#FEFEFE] py-2 px-3 font-bold hover:bg-black">
+                  + 立即创建
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Action Bar -->
+        <div class="border border-[#1E1E1E] bg-[#38B86B] p-3.5 font-mono-ts text-xs flex items-center justify-between">
+          <div>
+            <span class="ts-tag-black">LIVE APPLE NOTES VAULTS</span>
+            <span class="ml-2 font-bold">实时读取自 `notes/Notes/*.md`（支持随时对 iPhone 喊 Siri 查询）：</span>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="refreshLiveStatus()" class="bg-[#FEFEFE] border border-[#1E1E1E] px-3 py-1 font-bold">↻ 刷新列表</button>
+            <button onclick="triggerRealIcloudSync(this)" class="bg-[#1E1E1E] text-white px-3 py-1 font-bold">↑↓ 立即与 iCloud 双向同步</button>
+          </div>
+        </div>
+
+        <!-- Dynamic Vault Cards Grid -->
+        <div id="dynamic-vaults-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono-ts text-xs"></div>
+      </div>
+
+      <!-- =============================================================== -->
+      <!-- CONSOLE TAB 3: ICLOUD DRIVE & PHOTO-NOTES BRIDGE (云盘与图库互通) -->
+      <!-- =============================================================== -->
+      <div id="cpanel-drive" class="hidden space-y-6 font-mono-ts text-xs">
+
+        <!-- Top Status Banner -->
+        <div class="border border-[#1E1E1E] bg-[#F386A1] p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <span class="ts-tag-black">ICLOUD FULL-STACK UNLOCKED</span>
+            <span class="ml-2 font-bold">已通过单次云上贵州 Session 解锁 `p211-drivews` (iCloud 云盘) + `p211-ckdatabasews` (备忘录原生嵌图) 双向读写：</span>
+          </div>
+          <button onclick="loadIcloudDrivePanel(true)" class="bg-[#FEFEFE] border border-[#1E1E1E] px-3 py-1 font-bold shrink-0">
+            ↻ 实时刷新 iCloud 云盘与图库
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          <!-- Left: Photo <-> Notes + iCloud Drive Upload Bridge -->
+          <div class="lg:col-span-5 space-y-6">
+            <div class="ts-os-window">
+              <div class="ts-os-titlebar">
+                <span>PHOTO ⇄ NOTES BRIDGE // 传图直通云盘+备忘录</span>
+                <span>CLOUDKIT + DOCWS</span>
+              </div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-3.5">
+                <div class="bg-[#E5E5E5] border border-[#1E1E1E] p-3 text-[11px] leading-relaxed">
+                  <strong>💡 图库与备忘录怎么“说上话”？</strong><br/>
+                  当你在微信给机器人发照片（或在下方选图上传）时，系统同时做三件事：<br/>
+                  1️⃣ 直传至你的 <strong>iCloud 云盘 ➔《学习照片》</strong> 文件夹；<br/>
+                  2️⃣ 通过 CloudKit `Media + Attachment` 协议，将<strong>真图原生嵌入 Apple 备忘录《🖼️ 微信图片速记测试》</strong>（打开手机备忘录直接看大图）；<br/>
+                  3️⃣ 自动根据你的配文归类进对应分类本，并建立跨端索引！
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold mb-1">1. 选择一张本地图片（可选，不选则默认使用示例真图）：</label>
+                  <input id="photo-bridge-file" type="file" accept="image/*" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] p-1.5 text-xs" />
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold mb-1">2. 图片速记配文（决定同时关联到哪个备忘录分类本）：</label>
+                  <input id="photo-bridge-caption" type="text" value="高数例题板书重点拍照 记得周末复习待办" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] px-3 py-2 text-xs" />
+                </div>
+
+                <label class="flex items-center gap-2 text-xs cursor-pointer select-none">
+                  <input id="chk-photo-push-wx" type="checkbox" checked class="accent-[#1E1E1E]" />
+                  <span>同步完成后向我的<strong>手机微信发送通知</strong></span>
+                </label>
+
+                <button id="btn-photo-bridge" onclick="runPhotoBridgeTest()" class="w-full bg-[#1E1E1E] text-[#FEFEFE] py-2.5 font-bold hover:bg-black">
+                  UPLOAD // 立即直传 iCloud 云盘 + 备忘录原生嵌图 ->
+                </button>
+
+                <div id="photo-bridge-result" class="hidden border border-[#1E1E1E] bg-[#38B86B]/25 p-3 text-[11px] space-y-1"></div>
+              </div>
+            </div>
+
+            <!-- Synced Apple Notes Native Image Gallery -->
+            <div class="ts-os-window">
+              <div class="ts-os-titlebar">
+                <span>NOTES.ATTACHMENTS // 备忘录原生图库实景</span>
+                <span>ATTACHMENTS/</span>
+              </div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-4">
+                <div id="notes-gallery-grid" class="grid grid-cols-2 gap-3 max-h-[260px] overflow-y-auto">
+                  <div class="text-neutral-500">正在加载备忘录原生图片附件...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Real iCloud Drive Explorer & 1-Click Send to WeChat -->
+          <div class="lg:col-span-7 ts-os-window">
+            <div class="ts-os-titlebar">
+              <span>ICLOUD.DRIVE.EXPLORER // 云上贵州 iCloud 云盘实景与一键发微信</span>
+              <span id="drive-account-badge">p211-drivews.icloud.com.cn</span>
+            </div>
+            <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E1E1E]/15 pb-3">
+                <div>
+                  <span class="ts-tag-black">REAL CLOUDDOCS</span>
+                  <span class="ml-1.5">你可以在微信直接对机器人说：<strong>“把我云盘里的个人简历发给我”</strong>，或点击下方按钮一键发往手机微信：</span>
+                </div>
+              </div>
+
+              <!-- Folders Bar -->
+              <div>
+                <div class="text-[11px] font-bold mb-1.5">已识别的 iCloud 云盘目录 (`FOLDER::com.apple.CloudDocs`)：</div>
+                <div id="drive-folders-bar" class="flex flex-wrap gap-1.5"></div>
+              </div>
+
+              <!-- Files Table -->
+              <div>
+                <div class="text-[11px] font-bold mb-1.5">iCloud 云盘真实文件列表（点击右侧按钮直接将 PDF / 图片原件发到你手机微信）：</div>
+                <div id="drive-files-list" class="border border-[#1E1E1E] divide-y divide-[#1E1E1E]/20 max-h-[380px] overflow-y-auto bg-[#E5E5E5]/40">
+                  <div class="p-4 text-neutral-500">正在连接 p211-drivews.icloud.com.cn 读取你的云盘文件...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =============================================================== -->
+      <!-- CONSOLE TAB 4: BACKEND SETTINGS & LIVE LOG STREAM               -->
+      <!-- =============================================================== -->
+      <div id="cpanel-backend" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-5 space-y-4 font-mono-ts text-xs">
+          <div class="ts-os-window">
+            <div class="ts-os-titlebar"><span>SESSION & CHANNEL HEALTH // 身份与通道诊断</span></div>
+            <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-2.5">
+              <div class="flex justify-between"><span>当前登录微信 UserID:</span><span id="bk-wx-user" class="font-bold truncate max-w-[180px]">o9cq80...</span></div>
+              <div class="flex justify-between"><span>绑定机器人 AccountID:</span><span id="bk-wx-id" class="font-bold">4547d85e4cb2-im-bot</span></div>
+              <div class="flex justify-between"><span>iCloud 云端节点:</span><span class="font-bold">setup.icloud.com.cn</span></div>
+              <div class="flex justify-between"><span>备忘录总数:</span><span id="bk-note-count" class="font-bold">86 篇</span></div>
+              <div class="flex justify-between"><span>最近同步时间:</span><span id="bk-sync-time">--:--:--</span></div>
+              <div class="pt-2 flex gap-2">
+                <button onclick="navigateView('quickstart')" class="flex-1 border border-[#1E1E1E] bg-[#E5E5E5] py-2 font-bold">打开扫码换绑向导</button>
+                <button onclick="triggerRealIcloudSync(this)" class="flex-1 bg-[#1E1E1E] text-white py-2 font-bold">立即同步 iCloud</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 ts-os-window">
+          <div class="ts-os-titlebar">
+            <span>DAEMON.LOG // 服务器实时事件流 (每 3 秒自动刷新)</span>
+            <span>PORT 3080</span>
+          </div>
+          <div id="live-log-box" class="ts-os-window-inner bg-[#1E1E1E] text-[#FEFEFE] p-4 font-mono-ts text-xs leading-relaxed h-[320px] overflow-y-auto space-y-1.5">
+            <div>[SYSTEM] 正在连接本地后台...</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- =================================================================== -->
+  <!-- SCRIPTS: VIEW ROUTER, WIZARD, PLAYGROUND, CUSTOM VAULTS & CANVAS    -->
+  <!-- =================================================================== -->
+  <script>
+    const API_BASE = "http://localhost:3080";
+
+    // 1. Top-Level Product View Router (Landing <-> Quickstart <-> Playground)
+    function navigateView(viewName, scrollTargetId) {
+      ['landing', 'quickstart', 'playground'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.classList.toggle('hidden', v !== viewName);
+        const btn = document.getElementById('nav-btn-' + v);
+        if (btn) {
+          btn.className = (v === viewName)
+            ? "px-4 py-2 bg-[#1E1E1E] text-[#FEFEFE] font-semibold"
+            : "px-4 py-2 hover:bg-[#E5E5E5]";
+        }
+      });
+      if (scrollTargetId) {
+        setTimeout(() => {
+          document.getElementById(scrollTargetId)?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      refreshLiveStatus();
+    }
+
+    // 2. Quickstart 3-Step Wizard Switcher
+    function switchWizardStep(stepNum) {
+      [1, 2, 3].forEach(n => {
+        document.getElementById('wiz-panel-' + n)?.classList.toggle('hidden', n !== stepNum);
+        const tab = document.getElementById('wiz-tab-' + n);
+        if (tab) {
+          tab.className = (n === stepNum)
+            ? "p-3 text-left border-r border-[#1E1E1E] bg-[#1E1E1E] text-[#FEFEFE] font-bold"
+            : "p-3 text-left border-r border-[#1E1E1E] hover:bg-[#D4D4D4]";
+        }
+      });
+    }
+
+    // 3. Playground Console Sub-Tab Switcher
+    function switchConsoleTab(tabName) {
+      ['operator', 'vaults', 'drive', 'backend'].forEach(t => {
+        document.getElementById('cpanel-' + t)?.classList.toggle('hidden', t !== tabName);
+        const btn = document.getElementById('ctab-' + t);
+        if (btn) {
+          btn.className = (t === tabName)
+            ? "px-3 py-1 bg-[#FEFEFE] text-[#1E1E1E] font-bold"
+            : (t === 'drive'
+                ? "px-3 py-1 border border-[#F386A1] text-[#F386A1] hover:bg-white/10 font-bold"
+                : "px-3 py-1 border border-white/30 text-white hover:bg-white/10");
+        }
+      });
+      refreshLiveStatus();
+      if (tabName === 'drive') loadIcloudDrivePanel(false);
+    }
+
+    // 3.5 iCloud Drive & Photo-Notes Bridge Functions
+    async function loadIcloudDrivePanel(forceRefresh = false) {
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/drive${forceRefresh ? '?refresh=1' : ''}`);
+        const data = await res.json();
+        if (data.ok) renderDriveData(data);
+      } catch (e) {}
+    }
+
+    function renderDriveData(data) {
+      const badge = document.getElementById('drive-account-badge');
+      if (badge && data.account) {
+        badge.innerText = `${data.account.fullName} (${data.account.appleId})`;
+      }
+
+      const fBar = document.getElementById('drive-folders-bar');
+      if (fBar && data.folders) {
+        fBar.innerHTML = data.folders.map(f =>
+          `<span class="px-2 py-0.5 bg-[#E5E5E5] border border-[#1E1E1E] text-[11px] font-semibold">📁 ${escapeHtml(f.name)}</span>`
+        ).join('');
+      }
+
+      const fList = document.getElementById('drive-files-list');
+      if (fList && data.files) {
+        if (data.files.length === 0) {
+          fList.innerHTML = `<div class="p-4 text-neutral-500">暂无文件</div>`;
+        } else {
+          fList.innerHTML = data.files.map(f => {
+            const sizeStr = f.size > 1024 ? `${(f.size / 1024).toFixed(1)} KB` : `${f.size} B`;
+            return `
+              <div class="p-3 bg-[#FEFEFE] hover:bg-[#E5E5E5]/60 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="font-bold truncate">📄 ${escapeHtml(f.name)}</div>
+                  <div class="text-[10px] text-neutral-500 mt-0.5">
+                    目录: <span class="font-semibold text-[#1E1E1E]">${escapeHtml(f.folderName)}</span> · 大小: ${sizeStr} · ID: ${escapeHtml(String(f.docwsid).slice(0, 8))}...
+                  </div>
+                </div>
+                <button onclick="sendDriveFileToWechat('${escapeHtml(f.docwsid)}', '${escapeHtml(f.name)}', this)" class="shrink-0 bg-[#1E1E1E] text-[#FEFEFE] px-2.5 py-1.5 text-[11px] font-bold hover:bg-black">
+                  📲 发往我微信
+                </button>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      const gal = document.getElementById('notes-gallery-grid');
+      if (gal && data.noteImages) {
+        if (data.noteImages.length === 0) {
+          gal.innerHTML = `<div class="text-neutral-500 col-span-2">暂无图片附件</div>`;
+        } else {
+          gal.innerHTML = data.noteImages.map(img => `
+            <div class="border border-[#1E1E1E] bg-[#E5E5E5] p-2 flex flex-col justify-between gap-2">
+              <div class="h-24 bg-[#FEFEFE] border border-[#1E1E1E]/30 flex items-center justify-center overflow-hidden">
+                <img src="${API_BASE}/attachments/${encodeURIComponent(img.fileName)}" alt="${escapeHtml(img.fileName)}" class="max-h-full max-w-full object-contain" />
+              </div>
+              <div class="text-[10px] truncate font-bold" title="${escapeHtml(img.fileName)}">${escapeHtml(img.fileName)}</div>
+              <button onclick="sendNoteImageToWechat('${escapeHtml(img.fileName)}', this)" class="w-full bg-[#1E1E1E] text-white py-1 text-[10px] font-bold">
+                📲 发原图到微信
+              </button>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    async function sendDriveFileToWechat(docwsid, fileName, btn) {
+      const orig = btn.innerText;
+      btn.innerText = "正在拉取并发微信...";
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/drive/send-to-wechat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docwsid, fileName })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          btn.innerText = "✓ 已发至手机微信";
+          if (data.status) applyStatusToUI(data.status);
+        } else {
+          btn.innerText = "发送失败";
+        }
+      } catch {
+        btn.innerText = "发送异常";
+      }
+      setTimeout(() => { btn.innerText = orig; btn.disabled = false; }, 2200);
+    }
+
+    async function sendNoteImageToWechat(noteImageName, btn) {
+      const orig = btn.innerText;
+      btn.innerText = "正在发微信...";
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/drive/send-to-wechat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noteImageName })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          btn.innerText = "✓ 已发至微信";
+          if (data.status) applyStatusToUI(data.status);
+        }
+      } finally {
+        setTimeout(() => { btn.innerText = orig; btn.disabled = false; }, 2000);
+      }
+    }
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function runPhotoBridgeTest() {
+      const fileInput = document.getElementById('photo-bridge-file');
+      const caption = document.getElementById('photo-bridge-caption').value.trim() || "微信图片直传";
+      const pushToPhone = document.getElementById('chk-photo-push-wx').checked;
+      const btn = document.getElementById('btn-photo-bridge');
+      const resBox = document.getElementById('photo-bridge-result');
+
+      const orig = btn.innerText;
+      btn.innerText = "UPLOADING // 正在直传 iCloud 云盘 + 嵌入备忘录...";
+      btn.disabled = true;
+
+      try {
+        let dataUrl = null;
+        let fileName = `WeChat_Photo_${Date.now().toString().slice(-4)}.png`;
+        if (fileInput.files && fileInput.files[0]) {
+          fileName = fileInput.files[0].name;
+          dataUrl = await readFileAsDataURL(fileInput.files[0]);
+        }
+
+        const res = await fetch(`${API_BASE}/api/icloud/photo-bridge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, caption, dataUrl, pushToPhone })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          resBox.classList.remove('hidden');
+          resBox.innerHTML = `
+            <div class="font-bold">✅ 图库 ⇄ 备忘录双向直通成功！</div>
+            <div>1. iCloud 云盘：已写入 <strong>学习照片/${escapeHtml(data.fileName)}</strong></div>
+            <div>2. Apple 备忘录：已作为原生 Attachment 嵌入《<strong>🖼️ 微信图片速记测试</strong>》</div>
+            <div>3. 分类索引：已联动写入《<strong>${escapeHtml(data.savedNote?.categoryName || '')}</strong>》</div>
+          `;
+          if (data.driveData) renderDriveData(data.driveData);
+          if (data.status) applyStatusToUI(data.status);
+        } else {
+          resBox.classList.remove('hidden');
+          resBox.innerHTML = `<div class="text-red-700 font-bold">❌ 失败: ${escapeHtml(data.error || '')}</div>`;
+        }
+      } finally {
+        btn.innerText = orig;
+        btn.disabled = false;
+      }
+    }
+
+    // 4. Fetch & Apply Real Backend Status
+    async function refreshLiveStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/status`);
+        const data = await res.json();
+        applyStatusToUI(data);
+      } catch (err) {}
+    }
+
+    function applyStatusToUI(data) {
+      if (!data) return;
+      const shortUser = (data.wechat.userId || "").slice(0, 14) + "...";
+      const summary = `WX_SESSION: ${shortUser} · BOT: ${data.wechat.accountId} · ICLOUD.CN: ${data.icloud.noteCount} NOTES · MODE: ${data.wechat.mode}`;
+      const topSum = document.getElementById('console-top-summary');
+      if (topSum) topSum.innerText = summary;
+
+      const topSessionLabel = document.getElementById('top-session-label');
+      if (topSessionLabel && data.wechat.connected) {
+        topSessionLabel.innerText = `Console (${shortUser})`;
+      }
+
+      // Wizard status
+      const wizBadge = document.getElementById('wiz-wx-badge');
+      if (wizBadge) wizBadge.innerText = data.wechat.connected ? "● IDENTITY VERIFIED" : "WAIT SCAN";
+      const wizAcc = document.getElementById('wiz-wx-account-text');
+      if (wizAcc) wizAcc.innerText = `微信身份: ${data.wechat.userId} | 机器人: ${data.wechat.accountId}`;
+      const wizNote = document.getElementById('wiz-note-count');
+      if (wizNote) wizNote.innerText = `${data.icloud.noteCount} 篇 (.md)`;
+      const wizAtt = document.getElementById('wiz-att-count');
+      if (wizAtt) wizAtt.innerText = `${data.icloud.attachmentCount} 个`;
+
+      // Backend panel stats
+      const bkUser = document.getElementById('bk-wx-user');
+      if (bkUser) bkUser.innerText = data.wechat.userId;
+      const bkWx = document.getElementById('bk-wx-id');
+      if (bkWx) bkWx.innerText = data.wechat.accountId;
+      const bkNote = document.getElementById('bk-note-count');
+      if (bkNote) bkNote.innerText = `${data.icloud.noteCount} 篇 (.md) / ${data.icloud.attachmentCount} 附件`;
+      const bkSync = document.getElementById('bk-sync-time');
+      if (bkSync) bkSync.innerText = data.icloud.lastSyncTime || "--:--:--";
+
+      // Mode buttons
+      ['DUAL_AUTO', 'AGENT_FIRST', 'NOTES_FIRST'].forEach(m => {
+        const btn = document.getElementById('mode-btn-' + m);
+        if (!btn) return;
+        btn.className = (m === data.wechat.mode)
+          ? "px-2.5 py-1 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold"
+          : "px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E] hover:bg-[#D4D4D4]";
+      });
+
+      const rules = data.rules || [];
+      const lc = data.lastClassification || {};
+      const probs = lc.probabilities || {};
+
+      // Render dynamic probability bars in Playground
+      const probContainer = document.getElementById('dynamic-prob-bars');
+      if (probContainer && rules.length > 0) {
+        probContainer.innerHTML = rules.map(r => {
+          const val = Number(probs[r.id] || 0);
+          const pct = Math.max(2, Math.round(val * 100));
+          const isTop = lc.category === r.id;
+          return `
+            <div>
+              <div class="flex justify-between mb-0.5">
+                <span class="${isTop ? 'ts-tag-black' : ''}">${escapeHtml(r.title)}</span>
+                <span class="${isTop ? 'font-bold' : ''}">${val.toFixed(2)}</span>
+              </div>
+              <div class="w-full h-2 bg-[#E5E5E5] border border-[#1E1E1E]">
+                <div class="h-full bg-[#1E1E1E] transition-all duration-300" style="width:${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (data.lastClassification) {
+        document.getElementById('live-payload').innerText = `“${lc.text}”`;
+        document.getElementById('route-action-badge').innerText = lc.modeUsed || "PROCESSED";
+        document.getElementById('route-target-label').innerText = lc.categoryName || "";
+        document.getElementById('routing-latency').innerText = `${lc.latencyMs || 42}ms`;
+        document.getElementById('live-agent-reply').innerText = lc.agentReply || "";
+      }
+
+      // Render dynamic Vaults Grid in Tab 02
+      const vaultsGrid = document.getElementById('dynamic-vaults-grid');
+      if (vaultsGrid && rules.length > 0 && data.vaults) {
+        vaultsGrid.innerHTML = rules.map((r, idx) => {
+          const items = data.vaults[r.id] || [];
+          const bodyHtml = items.length === 0
+            ? `<div class="text-neutral-400">暂无新归档条目（在 Playground 发送包含「${escapeHtml(r.keywords.slice(0, 3).join('/'))}」的消息即可自动归入！）</div>`
+            : items.map(line => `<div class="border-b border-[#1E1E1E]/10 pb-1">• ${escapeHtml(line)}</div>`).join('');
+
+          const deleteBtn = r.builtIn
+            ? `<span class="text-[10px] opacity-75">SYSTEM VAULT 0${idx + 1}</span>`
+            : `<button onclick="deleteVaultRule('${r.id}')" class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 hover:bg-red-700">[删除规则]</button>`;
+
+          return `
+            <div class="ts-os-window">
+              <div class="ts-os-titlebar">
+                <span>${escapeHtml(r.fileName)}</span>
+                ${deleteBtn}
+              </div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-2 min-h-[160px] flex flex-col justify-between">
+                <div class="space-y-1.5">${bodyHtml}</div>
+                <div class="pt-2 border-t border-[#1E1E1E]/15 text-[10px] text-neutral-500">
+                  匹配词: ${escapeHtml(r.keywords.slice(0, 8).join(' / '))}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Logs
+      if (data.logs && data.logs.length > 0) {
+        const logBox = document.getElementById('live-log-box');
+        if (logBox) {
+          logBox.innerHTML = data.logs.map(l =>
+            `<div><span class="text-neutral-400">[${l.time}]</span> <span class="text-[#F386A1] font-bold">[${l.tag}]</span> ${escapeHtml(l.message)}</div>`
+          ).join('');
+        }
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+    }
+
+    // 5. Custom Vault Rule Creation & Deletion
+    function fillCustomRulePreset(title, keywords, isTodo) {
+      document.getElementById('new-rule-title').value = title;
+      document.getElementById('new-rule-keywords').value = keywords;
+      document.getElementById('new-rule-todo').checked = isTodo;
+    }
+
+    async function createNewVaultRule() {
+      const title = document.getElementById('new-rule-title').value.trim();
+      const keywords = document.getElementById('new-rule-keywords').value.trim();
+      const isTodo = document.getElementById('new-rule-todo').checked;
+      if (!title || !keywords) {
+        alert("请填写备忘录标题和触发关键词！");
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/vaults/rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, keywords, isTodo })
+      });
+      const data = await res.json();
+      if (data.ok && data.status) {
+        document.getElementById('new-rule-title').value = '';
+        document.getElementById('new-rule-keywords').value = '';
+        applyStatusToUI(data.status);
+      }
+    }
+
+    async function deleteVaultRule(id) {
+      const res = await fetch(`${API_BASE}/api/vaults/rules`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.ok && data.status) applyStatusToUI(data.status);
+    }
+
+    // 6. Real Actions (WeChat QR, Mode Switch, Playground Run, Siri Search, iCloud Sync)
+    async function loadWizardWechatQr() {
+      const box = document.getElementById('wiz-qr-box');
+      box.innerHTML = `<span class="text-xs text-neutral-600 p-4">正在向腾讯 ilinkai.weixin.qq.com 获取真实登录二维码...</span>`;
+      try {
+        const res = await fetch(`${API_BASE}/api/wechat/qr`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.qrDataUrl) {
+          box.innerHTML = `<img src="${data.qrDataUrl}" alt="WeChat Real QR" class="w-48 h-48 object-contain" />`;
+        } else {
+          box.innerHTML = `<span class="text-xs text-red-600">生成失败: ${escapeHtml(data.error || '')}</span>`;
+        }
+      } catch (e) {
+        box.innerHTML = `<span class="text-xs text-red-600">连接本地服务失败</span>`;
+      }
+    }
+
+    async function setBotMode(mode) {
+      const res = await fetch(`${API_BASE}/api/mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
+      const data = await res.json();
+      if (data.status) applyStatusToUI(data.status);
+    }
+
+    function quickFillAndRun(text) {
+      document.getElementById('live-operator-input').value = text;
+      submitRealOperation();
+    }
+
+    async function submitRealOperation() {
+      const input = document.getElementById('live-operator-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const pushToPhone = document.getElementById('chk-push-phone').checked;
+      const btn = document.getElementById('btn-run-sim');
+      const orig = btn.innerText;
+      btn.innerText = "RUNNING // 正在真实执行...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/simulate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, pushToPhone })
+        });
+        const data = await res.json();
+        if (data.status) applyStatusToUI(data.status);
+        input.value = '';
+      } finally {
+        btn.innerText = orig;
+        btn.disabled = false;
+      }
+    }
+
+    async function executeRealSiriSearch() {
+      const input = document.getElementById('siri-search-input');
+      const query = input.value.trim() || "英语";
+      const box = document.getElementById('siri-search-results');
+      box.innerHTML = "🔍 正在检索本地真实备忘录...";
+      const res = await fetch(`${API_BASE}/api/notes/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const data = await res.json();
+      if (!data.hits || data.hits.length === 0) {
+        box.innerHTML = `未找到包含「${escapeHtml(query)}」的备忘录。`;
+      } else {
+        box.innerHTML = data.hits.map((h, idx) =>
+          `<div class="mb-2 pb-2 border-b border-[#1E1E1E]/15 last:border-none">
+            <div class="font-bold">📄 ${idx + 1}. 《${escapeHtml(h.title)}》</div>
+            <div class="text-[11px] text-neutral-700 mt-0.5">${escapeHtml(h.snippet)}</div>
+          </div>`
+        ).join('');
+      }
+    }
+
+    async function triggerRealIcloudSync(btn) {
+      const orig = btn ? btn.innerText : "";
+      if (btn) btn.innerText = "正在同步 iCloud...";
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/sync`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status) applyStatusToUI(data.status);
+        if (btn) btn.innerText = "✓ iCloud 已同步";
+        setTimeout(() => { if (btn) btn.innerText = orig; }, 1600);
+      } catch {
+        if (btn) btn.innerText = orig;
+      }
+    }
+
+    async function triggerIcloudRelogin() {
+      await fetch(`${API_BASE}/api/icloud/relogin`, { method: 'POST' });
+      alert("已拉起云上贵州授权登录窗口！");
+    }
+
+    // Clock & Glider
+    setInterval(() => {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const el = document.getElementById('ts-clock');
+      if (el) el.innerText = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }, 1000);
+
+    let gliderState = [0, 1, 0, 0, 0, 1, 1, 1, 1];
+    function renderGlider() {
+      const grid = document.getElementById('glider-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      gliderState.forEach((cell, idx) => {
+        const div = document.createElement('div');
+        div.className = 'w-4 h-4 border border-[#1E1E1E]/40 flex items-center justify-center cursor-pointer';
+        if (cell) {
+          const dot = document.createElement('div');
+          dot.className = 'w-2.5 h-2.5 bg-[#1E1E1E]';
+          div.appendChild(dot);
+        }
+        div.onclick = () => { gliderState[idx] = gliderState[idx] ? 0 : 1; renderGlider(); };
+        grid.appendChild(div);
+      });
+    }
+    function stepGlider() { gliderState.unshift(gliderState.pop()); renderGlider(); }
+    renderGlider();
+
+    // Dithered Canvas
+    (function initDitherCanvas() {
+      const canvas = document.getElementById('dither-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let t = 0;
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width || 1000;
+        canvas.height = rect.height || 520;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+      function draw() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#1E1E1E';
+        const spacing = 6;
+        const cx1 = w * 0.46, cy1 = h * 0.92, r1 = Math.min(w, h) * 0.42;
+        const cx2 = w * 0.88, cy2 = h * 0.58, r2 = Math.min(w, h) * 0.34;
+        for (let y = 0; y < h; y += spacing) {
+          for (let x = 0; x < w; x += spacing) {
+            const d1 = Math.hypot(x - cx1, y - cy1);
+            const d2 = Math.hypot(x - cx2, y - cy2);
+            let density = 0.12;
+            if (d1 < r1) density = Math.max(density, Math.pow(1 - d1 / r1, 2) * 0.95);
+            if (d2 < r2) density = Math.max(density, (1 - d2 / r2) * 0.85);
+            const wave = Math.sin(x * 0.02 + y * 0.02 + t) * 0.08;
+            const radius = Math.max(0.6, (density + wave) * 2.4);
+            if (density > 0.15 || ((x + y) % 12 === 0)) {
+              ctx.beginPath();
+              ctx.arc(x, y, Math.min(radius, 2.6), 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+        t += 0.03;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    refreshLiveStatus();
+    setInterval(refreshLiveStatus, 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+notes/
+wechat_media/
+bat-output.txt
+qrcode.png
+.env
+.env.local

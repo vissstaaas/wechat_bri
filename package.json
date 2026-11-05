@@ -1,0 +1,15 @@
+{
+  "name": "wechat-notes-bridge",
+  "version": "1.0.0",
+  "description": "WeChat to Apple Notes Bridge via ClawBot",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "icloud-md": "^0.6.2",
+    "qrcode": "^1.5.4",
+    "weixin-agent-sdk": "^0.6.0"
+  }
+}
