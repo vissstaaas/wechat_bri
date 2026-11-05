@@ -1,9 +1,14 @@
 node_modules/
 .DS_Store
 *.log
-notes/
+/notes/
 wechat_media/
+icloud_photos_cache/
 bat-output.txt
 qrcode.png
 .env
 .env.local
+git-status.txt
+git-diff.txt
+git-command-*.json
+temp-*.json

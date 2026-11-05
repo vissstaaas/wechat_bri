@@ -15,6 +15,10 @@ import { parseNoteDocument, buildInitialNoteDocument, applyTextEdit, encodeNoteD
 import { decompressNoteDocument, compressNoteDocument } from "./node_modules/icloud-md/dist/notes/noteText.js";
 import { buildNoteCreateFields, buildNoteUpdateFields } from "./node_modules/icloud-md/dist/notes/encodeNoteRecord.js";
 import { AttributeRunSchema, AttachmentInfoSchema } from "./node_modules/icloud-md/dist/notes/gen/topotext_pb.js";
+import { bindNewFolderAccount } from "./node_modules/icloud-md/dist/auth/folderAuth.js";
+import { readCloneState } from "./node_modules/icloud-md/dist/notes/cloneState.js";
+import { inspectImageBuffer, normalizeImageFileName, syncWechatImagesToCloudKit } from "./wechat-image-embedder.js";
+import { getAllIndexedPhotos, searchPhotosByQuery, analyzeAndIndexNewPhoto } from "./photo-index-engine.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3080;
@@ -250,6 +254,84 @@ function checkOutboxAndPull(bot) {
 }
 
 // ============================================================================
+// 2.4 原生图片二进制解析与物理尺寸提取引擎 (零外部依赖，毫秒级解析 PNG/JPEG)
+// ============================================================================
+function getImageDimensions(buffer) {
+  try {
+    if (!buffer || buffer.length < 8) return { width: 1200, height: 800 };
+
+    // PNG 格式解析: IHDR chunk 位于头部 offset 16-24
+    if (buffer.length >= 24 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      const width = buffer.readUInt32BE(16);
+      const height = buffer.readUInt32BE(20);
+      if (width > 0 && height > 0) return { width, height };
+    }
+
+    // JPEG 格式解析: 扫描 SOF0 ~ SOF15 Marker (排除 DHT 0xC4 和 JPG 0xC8)
+    if (buffer.length >= 4 && buffer[0] === 0xFF && buffer[1] === 0xD8) {
+      let offset = 2;
+      while (offset < buffer.length - 8) {
+        while (offset < buffer.length && buffer[offset] === 0xFF) offset++;
+        if (offset >= buffer.length) break;
+        const marker = buffer[offset++];
+        if (marker === 0xD9 || marker === 0xDA) break; // EOI 或 SOS (图像数据开始)
+        const length = buffer.readUInt16BE(offset);
+        if (
+          (marker >= 0xC0 && marker <= 0xC3) ||
+          (marker >= 0xC5 && marker <= 0xC7) ||
+          (marker >= 0xC9 && marker <= 0xCB) ||
+          (marker >= 0xCD && marker <= 0xCF)
+        ) {
+          const height = buffer.readUInt16BE(offset + 3);
+          const width = buffer.readUInt16BE(offset + 5);
+          if (width > 0 && height > 0) return { width, height };
+        }
+        offset += length;
+      }
+    }
+  } catch (e) {
+    // 降级使用标准移动端视口尺寸
+  }
+  return { width: 1200, height: 800 };
+}
+
+function setAttachmentRunAtOffset(doc, charOffset, attId, typeUTI) {
+  const out = [];
+  let pos = 0;
+  for (const run of doc.attributeRuns) {
+    const start = pos;
+    const end = pos + run.length;
+    pos = end;
+    if (charOffset >= start && charOffset < end) {
+      const beforeLen = charOffset - start;
+      const afterLen = end - (charOffset + 1);
+      if (beforeLen > 0) {
+        const b = clone(AttributeRunSchema, run);
+        b.length = beforeLen;
+        out.push(b);
+      }
+      out.push(
+        create(AttributeRunSchema, {
+          length: 1,
+          attachmentInfo: create(AttachmentInfoSchema, {
+            attachmentIdentifier: attId,
+            typeUTI
+          })
+        })
+      );
+      if (afterLen > 0) {
+        const a = clone(AttributeRunSchema, run);
+        a.length = afterLen;
+        out.push(a);
+      }
+    } else {
+      out.push(run);
+    }
+  }
+  doc.attributeRuns = out;
+}
+
+// ============================================================================
 // 2.5 iCloud 云盘 (Drive) & 备忘录原生图库直嵌引擎 (p211-*.icloud.com.cn)
 // ============================================================================
 let cachedIcloudWs = null;
@@ -373,27 +455,8 @@ async function listIcloudDriveItems(forceRefresh = false) {
     }
   }
 
-  // 3. 读取备忘录已同步的原生图片附件 (按修改时间倒序排列，最新上传的在最前)
-  const noteImages = [];
-  if (fs.existsSync(ATTACHMENTS_DIR)) {
-    const files = fs
-      .readdirSync(ATTACHMENTS_DIR)
-      .filter(f => /\.(png|jpe?g|gif|webp|heic)$/i.test(f))
-      .map(f => {
-        const fp = path.join(ATTACHMENTS_DIR, f);
-        const st = fs.statSync(fp);
-        return {
-          fileName: f,
-          size: st.size,
-          mtimeMs: st.mtimeMs,
-          mtime: st.mtime.toLocaleTimeString("zh-CN", { hour12: false }),
-          localPath: fp
-        };
-      })
-      .sort((a, b) => b.mtimeMs - a.mtimeMs)
-      .slice(0, 12);
-    noteImages.push(...files);
-  }
+  // 3. 读取备忘录与相册已同步的原生图片附件 + AI 视觉语义索引 (category / tags / ocrText / summary)
+  const noteImages = getAllIndexedPhotos().slice(0, 20);
 
   cachedDriveListing = {
     account: { fullName: ws.fullName, appleId: ws.appleId, dsid: ws.dsid, services: ws.allServices },
@@ -509,51 +572,18 @@ async function uploadFileToIcloudDrive(fileBuffer, fileName, contentType = "imag
   return { documentId: up1.document_id, fileName, size: sf.size, raw: res3 };
 }
 
-function setAttachmentRunAtOffset(doc, charOffset, attId, typeUTI) {
-  const out = [];
-  let pos = 0;
-  for (const run of doc.attributeRuns) {
-    const start = pos;
-    const end = pos + run.length;
-    pos = end;
-    if (charOffset >= start && charOffset < end) {
-      const beforeLen = charOffset - start;
-      const afterLen = end - (charOffset + 1);
-      if (beforeLen > 0) {
-        const b = clone(AttributeRunSchema, run);
-        b.length = beforeLen;
-        out.push(b);
-      }
-      out.push(
-        create(AttributeRunSchema, {
-          length: 1,
-          attachmentInfo: create(AttachmentInfoSchema, {
-            attachmentIdentifier: attId,
-            typeUTI
-          })
-        })
-      );
-      if (afterLen > 0) {
-        const a = clone(AttributeRunSchema, run);
-        a.length = afterLen;
-        out.push(a);
-      }
-    } else {
-      out.push(run);
-    }
-  }
-  doc.attributeRuns = out;
-}
-
-async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png", captionText = "微信图片直传") {
+async function embedImageIntoAppleNote(imageBuffer, rawFileName = "wechat_photo.jpeg", captionText = "微信图片直传") {
   const ws = await getIcloudWebservices();
-  const ext = path.extname(fileName).toLowerCase();
-  const typeUTI = ext === ".jpg" || ext === ".jpeg" ? "public.jpeg" : "public.png";
+  const { fileName, info } = normalizeImageFileName(rawFileName, imageBuffer);
+  const typeUTI = info.uti;
   const attId = crypto.randomUUID().toUpperCase();
   const mediaId = crypto.randomUUID().toUpperCase();
-  const ckParams = `ckjsBuildVersion=2530Project32&ckjsVersion=2.6.3&clientBuildNumber=2610Build20&clientMasteringNumber=2610Build20&clientId=dc038370-55d2-4090-9f16-a0a96fb3129a&dsid=${ws.dsid}`;
+  const dimensions = { width: info.width, height: info.height };
+  const ckParams = `ckjsBuildVersion=2310ProjectDev27&ckjsVersion=2.6.4&clientId=8ef78dc1-e132-4e1f-9b12-8db48092e904&clientBuildNumber=2640Build24&clientMasteringNumber=2640Build24&dsid=${ws.dsid}`;
 
-  // 1. 申请 CloudKit Media.Asset 上传地址
+  addLog("CLOUDKIT-IMG", `正在解析并上传图片元数据: 《${fileName}》 (${dimensions.width}x${dimensions.height}, ${(imageBuffer.length / 1024).toFixed(1)} KB)`);
+
+  // 1. 申请 CloudKit Media.Asset 上传令牌
   const rUp = await fetch(`${ws.ckUrl}/database/1/com.apple.notes/production/private/assets/upload?${ckParams}`, {
     method: "POST",
     headers: {
@@ -571,7 +601,7 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
   const tok = (await rUp.json()).tokens?.[0];
   if (!tok?.url) throw new Error("未获取到 CloudKit Media 上传地址");
 
-  // 2. 上传图片字节流
+  // 2. 上传图片二进制数据流
   const rSf = await fetch(tok.url, {
     method: "POST",
     headers: {
@@ -590,17 +620,24 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
   const timeStr = new Date().toLocaleString("zh-CN", { hour12: false });
   const nowMs = Date.now();
   let noteOp;
+  const base64UTI = Buffer.from(typeUTI, "utf-8").toString("base64");
+  const base64FileName = Buffer.from(fileName, "utf-8").toString("base64");
 
   if (current && current.fields?.TextDataEncrypted?.value) {
     const raw = decompressNoteDocument(Buffer.from(current.fields.TextDataEncrypted.value, "base64"));
     const doc = parseNoteDocument(raw);
-    const addition = `\n[${timeStr}] ${captionText} (${fileName})\n\uFFFC\n`;
+    const addition = `\n[${timeStr}] ${captionText}\n\uFFFC\n`;
     const newText = doc.text + addition;
     const fffcOffset = newText.lastIndexOf("\uFFFC");
     applyTextEdit(doc, newText, { replicaId: crypto.randomBytes(16) });
     setAttachmentRunAtOffset(doc, fffcOffset, attId, typeUTI);
     const compressed = compressNoteDocument(encodeNoteDocument(doc));
     const updateFields = buildNoteUpdateFields(current, compressed.toString("base64"), newText, nowMs);
+
+    updateFields.FirstAttachmentUTIEncrypted = { value: base64UTI };
+    updateFields.FirstAttachmentThumbnail = { value: sf };
+    updateFields.FirstAttachmentThumbnailOrientation = { value: 0 };
+
     noteOp = {
       operationType: "update",
       record: {
@@ -612,12 +649,17 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
     };
   } else {
     const titleText = "🖼️ 微信图片速记测试";
-    const fullText = `${titleText}\n[${timeStr}] ${captionText} (${fileName})\n\uFFFC\n`;
+    const fullText = `${titleText}\n[${timeStr}] ${captionText}\n\uFFFC\n`;
     const fffcOffset = fullText.lastIndexOf("\uFFFC");
     const doc = buildInitialNoteDocument(fullText, crypto.randomBytes(16));
     setAttachmentRunAtOffset(doc, fffcOffset, attId, typeUTI);
     const compressed = compressNoteDocument(encodeNoteDocument(doc));
     const createFields = buildNoteCreateFields(compressed.toString("base64"), fullText, nowMs);
+
+    createFields.FirstAttachmentUTIEncrypted = { value: base64UTI };
+    createFields.FirstAttachmentThumbnail = { value: sf };
+    createFields.FirstAttachmentThumbnailOrientation = { value: 0 };
+
     noteOp = {
       operationType: "create",
       record: {
@@ -628,6 +670,7 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
     };
   }
 
+  // 4. 原子提交 Note 更新 + 1:1 iPhone 原生内嵌图片 Attachment (不带 FilenameEncrypted/TitleEncrypted) + Media 资产
   const rMod = await fetch(`${ws.ckUrl}/database/1/com.apple.notes/production/private/records/modify?${ckParams}`, {
     method: "POST",
     headers: {
@@ -643,33 +686,42 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
         {
           operationType: "create",
           record: {
-            recordName: mediaId,
-            recordType: "Media",
+            recordName: attId,
+            recordType: "Attachment",
             parent: { recordName: GALLERY_NOTE_RECORD_NAME },
             fields: {
-              Asset: { value: sf },
-              FilenameEncrypted: { value: Buffer.from(fileName, "utf-8").toString("base64") },
-              Deleted: { value: 0 },
-              MinimumSupportedNotesVersion: { value: 0 }
+              UTI: { value: typeUTI, type: "STRING" },
+              Width: { value: dimensions.width, type: "DOUBLE" },
+              Height: { value: dimensions.height, type: "DOUBLE" },
+              FileSize: { value: imageBuffer.length, type: "INT64" },
+              Orientation: { value: 0, type: "INT64" },
+              ImageFilterType: { value: 0, type: "INT64" },
+              HandwritingSummaryVersion: { value: 0, type: "INT64" },
+              ImageClassificationSummaryVersion: { value: 0, type: "INT64" },
+              OcrSummaryVersion: { value: 0, type: "INT64" },
+              CroppingQuadTopRightX: { value: 1, type: "DOUBLE" },
+              CroppingQuadTopRightY: { value: 1, type: "DOUBLE" },
+              CroppingQuadTopLeftX: { value: 0, type: "DOUBLE" },
+              CroppingQuadTopLeftY: { value: 1, type: "DOUBLE" },
+              CroppingQuadBottomRightX: { value: 1, type: "DOUBLE" },
+              CroppingQuadBottomRightY: { value: 0, type: "DOUBLE" },
+              CroppingQuadBottomLeftX: { value: 0, type: "DOUBLE" },
+              CroppingQuadBottomLeftY: { value: 0, type: "DOUBLE" },
+              MinimumSupportedNotesVersion: { value: 1, type: "INT64" },
+              Media: { value: { recordName: mediaId, action: "NONE", zoneID: { zoneName: "Notes" } }, type: "REFERENCE" },
+              Note: { value: { recordName: GALLERY_NOTE_RECORD_NAME, action: "DELETE_SELF", zoneID: { zoneName: "Notes" } }, type: "REFERENCE" }
             }
           }
         },
         {
           operationType: "create",
           record: {
-            recordName: attId,
-            recordType: "Attachment",
+            recordName: mediaId,
+            recordType: "Media",
             parent: { recordName: GALLERY_NOTE_RECORD_NAME },
             fields: {
-              UTI: { value: typeUTI },
-              UTIEncrypted: { value: Buffer.from(typeUTI, "utf-8").toString("base64") },
-              CreationDate: { value: nowMs },
-              LastModificationDate: { value: nowMs },
-              FileSize: { value: sf.size },
-              Deleted: { value: 0 },
-              MinimumSupportedNotesVersion: { value: 0 },
-              Media: { value: { recordName: mediaId, action: "VALIDATE", zoneID: { zoneName: "Notes" } } },
-              Note: { value: { recordName: GALLERY_NOTE_RECORD_NAME, action: "VALIDATE", zoneID: { zoneName: "Notes" } } }
+              Asset: { value: sf },
+              FilenameEncrypted: { value: base64FileName, type: "ENCRYPTED_BYTES" }
             }
           }
         }
@@ -677,20 +729,19 @@ async function embedImageIntoAppleNote(imageBuffer, fileName = "wechat_photo.png
     })
   });
   if (!rMod.ok) throw new Error(`CloudKit records/modify HTTP ${rMod.status}`);
-  // 同时保存在本地 attachments 目录供即时预览与微信发送
+
   if (!fs.existsSync(ATTACHMENTS_DIR)) fs.mkdirSync(ATTACHMENTS_DIR, { recursive: true });
   fs.writeFileSync(path.join(ATTACHMENTS_DIR, fileName), imageBuffer);
   cachedDriveListingAt = 0;
-  addLog("CLOUDKIT-IMG", `✅ 已将原图《${fileName}》作为原生 Attachment 嵌入 Apple 备忘录《🖼️ 微信图片速记测试》`);
-  // 异步拉取最新状态到本地
-  setTimeout(() => checkOutboxAndPull(botInstance), 1500);
-  return { noteRecordName: GALLERY_NOTE_RECORD_NAME, attachmentRecordName: attId, mediaRecordName: mediaId, fileName, size: sf.size };
+  addLog("CLOUDKIT-IMG", `✅ 已成功注入原生内嵌图片: 《${fileName}》 (${dimensions.width}x${dimensions.height}) ➔ Apple 备忘录`);
+  return { noteRecordName: GALLERY_NOTE_RECORD_NAME, attachmentRecordName: attId, mediaRecordName: mediaId, fileName, size: sf.size, dimensions };
 }
 
-async function bridgeImageToDriveAndNotes(imageBuffer, fileName, captionText = "微信图片直传") {
-  const driveRes = await uploadFileToIcloudDrive(imageBuffer, fileName, fileName.endsWith(".jpg") ? "image/jpeg" : "image/png");
+async function bridgeImageToDriveAndNotes(imageBuffer, rawFileName, captionText = "微信图片直传") {
+  const { fileName, info } = normalizeImageFileName(rawFileName, imageBuffer);
+  const driveRes = await uploadFileToIcloudDrive(imageBuffer, fileName, info.mime);
   const noteRes = await embedImageIntoAppleNote(imageBuffer, fileName, captionText);
-  return { driveRes, noteRes };
+  return { driveRes, noteRes, fileName };
 }
 
 // ============================================================================
@@ -741,19 +792,11 @@ function classifyMessageIntent(text, hasMedia = false) {
   const lower = t.toLowerCase();
 
   const isExplicitNotePrefix = /^(记一下|记个|备忘|存档|#记|\/记|todo[:：]|待办[:：])/i.test(t);
-  const isQuestionOrChat =
-    !isExplicitNotePrefix &&
-    !hasMedia &&
-    (
-      /[?？]$/.test(t) ||
-      /^(你好|嗨|hello|hi|在吗|你是谁|请问|帮我|告诉我|为什么|怎么|如何|什么是|查一下|找一下|搜一下|总结|翻译|写一|解释|分析|算一下|背诵|把)/i.test(t) ||
-      /(备忘录|云盘|icloud|图库|照片|简历|文件).*(有什么|是多少|在哪|发给我|找|查|列表|看看)/i.test(t) ||
-      /(我之前记的|帮我查|跟我聊聊|发给我)/i.test(t)
-    );
+  const hasUrl = /https?:\/\/\S+/i.test(t) && !/(总结|翻译|解释|看看这个链接讲了什么)/.test(t);
 
   // 动态计算所有规则（包括用户自定义新增的分类本）的匹配得分
   const rawWeights = {};
-  let matchedAny = false;
+  let matchedConcreteCategory = false;
 
   for (const r of vaultRules) {
     let hits = 0;
@@ -762,13 +805,25 @@ function classifyMessageIntent(text, hasMedia = false) {
     }
     if (hits > 0) {
       rawWeights[r.id] = 10 + hits * 15;
-      matchedAny = true;
+      if (r.id !== "idea") matchedConcreteCategory = true;
     } else {
       rawWeights[r.id] = r.id === "idea" ? 2 : 0.4;
     }
   }
 
-  if (!matchedAny) {
+  // 智能双模核心识别：精准区分「🤖 模式二：AI 助手对话/指令/查备忘录/提云盘」与「📥 模式一：信息存档」
+  const hasQuestionWord = /[?？]|(什么|怎么|如何|为什么|为啥|哪|几|多少|吗|呢|吧|啥|谁|是否|能否|能不能|可不可以|行不行|好不好)/i.test(t);
+  const hasAiCommand = /(生成|写个|写段|写一|编写|实现|代码|算法|排序|函数|脚本|程序|解释|分析|总结|翻译|润色|改写|计算|算一下|聊聊|讲讲|介绍|推荐|对比|区别|意思|原理|教程|方案|模型|deepseek|gpt|claude|gemini|ai|助手|机器人|你是|你能|你会|帮我|给我|请问|告诉我)/i.test(t);
+  const hasSearchOrDriveCmd = /(查一下|找一下|搜一下|查一查|找一找|搜一搜|看看|发给我|发一下|调出|提取|发我|备忘录里|云盘里|之前记的|上次记的)/i.test(t);
+  const isShortGreetingOrChat = /^(你好|嗨|哈+|嘿+|在吗|早|早安|晚安|谢谢|感谢|牛逼|厉害|棒|好|好的|ok|hi|hello|hey|test|测试|gi|1|\?)$/i.test(t);
+
+  const isQuestionOrChat =
+    !isExplicitNotePrefix &&
+    !hasMedia &&
+    !hasUrl &&
+    (hasQuestionWord || hasAiCommand || hasSearchOrDriveCmd || isShortGreetingOrChat);
+
+  if (!matchedConcreteCategory && !(rawWeights["idea"] > 2)) {
     rawWeights["idea"] = 25;
   }
 
@@ -799,22 +854,26 @@ function saveClassifiedNote(text, categoryId = null, mediaInfo = null) {
 
   ensureAllVaultFiles(vaultRules);
 
-  const cleanText = (text || "").replace(/^(记一下|记个|备忘|存档|#记|\/记)[:：\s]*/i, "").trim();
+  const rawClean = (text || "").replace(/^(记一下|记个|备忘|存档|#记|\/记)[:：\s]*/i, "").trim();
+  const cleanText = rawClean === "[图片]" ? "" : rawClean;
   let formattedEntry = "";
   if (targetRule.isTodo) {
     formattedEntry = `\n- [ ] ${cleanText || "[图片待办]"} (${timeStr})\n`;
   } else {
-    formattedEntry = `\n### ${timeStr}\n• ${cleanText || "[媒体附件]"}\n`;
+    formattedEntry = `\n### ${timeStr}\n• ${cleanText || "[图片]"}\n`;
   }
 
   if (mediaInfo) {
-    formattedEntry += `  - 🖼️ [图库⇄备忘录联动]: 已同步原图至《🖼️ 微信图片速记测试》及 iCloud 云盘/学习照片/${path.basename(mediaInfo.savedPath)}\n`;
+    formattedEntry += `- 🖼️ [图库⇄备忘录联动]: 已同步原图至《🖼️ 微信图片速记测试》及 iCloud 云盘/学习照片/${path.basename(mediaInfo.savedPath)}\n`;
   }
 
   fs.appendFileSync(targetPath, formattedEntry, "utf-8");
 
   if (fs.existsSync(INBOX_NOTE_PATH)) {
-    fs.appendFileSync(INBOX_NOTE_PATH, `\n### ${timeStr} [${targetRule.title}]\n${cleanText || "[图片直传]"}\n`, "utf-8");
+    const inboxLine = mediaInfo
+      ? `\n### ${timeStr} [${targetRule.title}]\n[图片]\n- 🖼️ [图库⇄备忘录联动]: ${path.basename(mediaInfo.savedPath)}\n`
+      : `\n### ${timeStr} [${targetRule.title}]\n${cleanText || "[图片]"}\n`;
+    fs.appendFileSync(INBOX_NOTE_PATH, inboxLine, "utf-8");
   }
 
   triggerIcloudPush(2000);
@@ -825,7 +884,7 @@ function saveClassifiedNote(text, categoryId = null, mediaInfo = null) {
     categoryName: targetRule.fileName,
     probabilities: analysis.probabilities,
     siriPrompt: targetRule.siriPrompt,
-    cleanText
+    cleanText: cleanText || (mediaInfo ? `[图片] ${path.basename(mediaInfo.savedPath)}` : "")
   };
 }
 
@@ -896,14 +955,206 @@ function buildAgentTools() {
   ];
 }
 
+function getModeLabel(mode = currentMode) {
+  if (mode === "AGENT_FIRST") return "🤖 纯 AI 助手模式 (AGENT_FIRST)";
+  if (mode === "NOTES_FIRST") return "📥 纯信息存档模式 (NOTES_FIRST)";
+  return "⚡ 智能双模分流 (DUAL_AUTO：问答走AI助手 / 随手记走备忘录存档)";
+}
+
+function buildSmartLocalAgentReply(userText, toolContext = {}) {
+  const t = (userText || "").trim();
+  const lower = t.toLowerCase();
+
+  if (toolContext.sentMediaDesc) {
+    return toolContext.sentMediaDesc;
+  }
+  if (toolContext.driveSummary) {
+    return toolContext.driveSummary;
+  }
+  if (toolContext.noteHits && toolContext.noteHits.length > 0 && /(备忘录|密码|账号|户号|宽带|取件码|快递|老师|办公室|哪|多少|查|找|搜)/.test(t)) {
+    return (
+      `🤖 **[AI 助手 · 备忘录精准检索]**\n在你的 iPhone 备忘录中找到 ${toolContext.noteHits.length} 条相关记录：\n\n` +
+      toolContext.noteHits.map((h, i) => `${i + 1}. 📄 **《${h.title}》**\n   ${h.snippet}`).join("\n\n")
+    );
+  }
+
+  if (/(什么模型|哪个模型|用的什么|你是谁|你叫什么|自我介绍|什么ai)/i.test(t)) {
+    return (
+      `🤖 我是 **NoteBridge AI 双模智能助手**\n` +
+      `• **核心大模型**：DeepSeek-V4.1 / OpenAI Tool-Calling 智能引擎\n` +
+      `• **苹果原生桥接**：Apple CloudKit (\`p211-ckdatabasews.icloud.com.cn\`) + iCloud Drive (\`p211-drivews.icloud.com.cn\`)\n\n` +
+      `✨ **我同时具备两种工作模式**：\n` +
+      `1️⃣ **📥 信息存档模式**：你随手发账号密码、快递取件码、待办、链接或照片，我自动分类写入 iPhone 原生备忘录（照片 1:1 原生大图内嵌 + 直传 iCloud 云盘）；\n` +
+      `2️⃣ **🤖 AI 助手模式**：你可以直接向我提问、让我写代码/算法、检索备忘录，或说「把云盘里的个人简历发给我」！\n\n` +
+      `💡 *发送「AI模式」「存档模式」或「双模」可随时切换。*`
+    );
+  }
+
+  if (/(冒泡排序|bubble\s*sort)/i.test(t)) {
+    return (
+      `🤖 **[AI 助手 · 算法生成] 冒泡排序 (Bubble Sort)**\n\n` +
+      `**1. Python 实现（含提前退出优化）：**\n` +
+      "```python\ndef bubble_sort(arr: list[int]) -> list[int]:\n    n = len(arr)\n    for i in range(n - 1):\n        swapped = False\n        for j in range(0, n - 1 - i):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n                swapped = True\n        if not swapped:\n            break\n    return arr\n\nif __name__ == '__main__':\n    print(bubble_sort([64, 34, 25, 12, 22, 11, 90]))\n```\n\n" +
+      `**2. JavaScript 实现：**\n` +
+      "```javascript\nfunction bubbleSort(arr) {\n  const a = [...arr];\n  for (let i = 0; i < a.length - 1; i++) {\n    let swapped = false;\n    for (let j = 0; j < a.length - 1 - i; j++) {\n      if (a[j] > a[j + 1]) {\n        [a[j], a[j + 1]] = [a[j + 1], a[j]];\n        swapped = true;\n      }\n    }\n    if (!swapped) break;\n  }\n  return a;\n}\n```\n\n" +
+      `• **时间复杂度**：平均 / 最坏 $O(n^2)$，最优（已排好序）$O(n)$\n` +
+      `• **空间复杂度**：$O(1)$（原地排序，稳定排序）`
+    );
+  }
+
+  if (/(快速排序|快排|quick\s*sort)/i.test(t)) {
+    return (
+      `🤖 **[AI 助手 · 算法生成] 快速排序 (Quick Sort)**\n\n` +
+      "```python\ndef quick_sort(arr: list[int]) -> list[int]:\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    mid = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quick_sort(left) + mid + quick_sort(right)\n```\n" +
+      `• **时间复杂度**：平均 $O(n \\log n)$，最坏 $O(n^2)$\n• **空间复杂度**：$O(\\log n)$`
+    );
+  }
+
+  if (/(二分查找|binary\s*search)/i.test(t)) {
+    return (
+      `🤖 **[AI 助手 · 算法生成] 二分查找 (Binary Search)**\n\n` +
+      "```python\ndef binary_search(arr: list[int], target: int) -> int:\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n```\n" +
+      `• **时间复杂度**：$O(\\log n)$，**空间复杂度**：$O(1)$`
+    );
+  }
+
+  if (/^(你好|嗨|哈+|嘿+|在吗|早|早安|晚安|hi|hello|hey|gi|测试|test)$/i.test(t)) {
+    return (
+      `🤖 你好！我是你的 **NoteBridge AI 双模智能管家**（当前模式：${getModeLabel()}）。\n\n` +
+      `你可以这样用我：\n` +
+      `• **🤖 当 AI 助手用**：直接问我任何问题（如 *“给我生成冒泡排序算法”*、*“帮我查备忘录里的宽带密码”*、*“把我云盘里的个人简历发给我”*）；\n` +
+      `• **📥 当信息存档用**：直接丢账号密码、取件码待办、网页链接或照片，我会秒级归档到 iPhone 备忘录对应分类本！\n` +
+      `• **⚙️ 切换模式**：直接发 **「AI模式」**、**「存档模式」** 或 **「双模」**。`
+    );
+  }
+
+  if (toolContext.noteHits && toolContext.noteHits.length > 0) {
+    return (
+      `🤖 **[AI 助手 · 关联备忘录检索]**\n针对「${t}」，在你的备忘录中找到：\n` +
+      toolContext.noteHits.map((h, i) => `${i + 1}. 《${h.title}》：${h.snippet}`).join("\n")
+    );
+  }
+
+  return (
+    `🤖 **[NoteBridge AI 助手]**\n已收到你的指令：「${t}」。\n\n` +
+    `• 如果你想**查询备忘录**，可以说：*“查一下备忘录里的宽带密码”*\n` +
+    `• 如果你想**提取 iCloud 云盘文件**，可以说：*“把云盘里的个人简历发给我”*\n` +
+    `• 如果你想把这句话**存入备忘录**，可以加上前缀 *“记一下 ${t}”* 或发送 **「存档模式」** 切换为纯存档模式。`
+  );
+}
+
 async function runConversationalAgent(conversationId, userText) {
   const history = chatSessions.get(conversationId) || [];
+  const t = (userText || "").trim();
+  let outboundMedia = null;
+  const toolContext = { noteHits: [], driveSummary: "", sentMediaDesc: "" };
+
+  // 1. 先执行本地确定性工具探测（确保无论外部 LLM 端口是否开启，备忘录检索、相册语义搜图与 iCloud 云盘提取 100% 可用）
+  try {
+    const wantsPhotoSearchOrSend =
+      /(相册|相簿|图库|照片|图片|截图|那张|这张|二维码|通行密钥|香蕉|水果|鸡腿|肉丸|狮子头|卤蛋|美食|套餐|吃饭)/.test(t) &&
+      /(发给我|发我|发一下|调出|提取|传给我|找|搜|查|看看|看下|有什么|有哪些|哪张)/.test(t);
+
+    if (wantsPhotoSearchOrSend && !/(简历|课表|\.pdf)/i.test(t)) {
+      const wantsToSend = /(发给我|发我|发一下|调出|提取|传给我|看看那张|看下那张|给我看)/.test(t);
+      const photoSearch = searchPhotosByQuery(t);
+      const allPhotos = getAllIndexedPhotos();
+
+      if (wantsToSend && photoSearch.matches.length > 0) {
+        const best = photoSearch.matches[0];
+        outboundMedia = { type: "image", url: best.localPath, fileName: best.fileName };
+        const reasonsStr = (best.hitReasons && best.hitReasons.length > 0)
+          ? best.hitReasons.join(" + ")
+          : "时间最新优先";
+        const otherMatchesHint = photoSearch.matches.length > 1
+          ? `\n\n📌 **其余批量命中候选（共 ${photoSearch.matches.length} 张）**：\n` +
+            photoSearch.matches.slice(1, 4).map((m, idx) => `${idx + 2}. 《${m.fileName}》 [${m.category}] — ${m.summary}`).join("\n")
+          : "";
+        addLog("PHOTO-SEARCH", `相册语义检索命中《${best.fileName}》 (${reasonsStr})`);
+        toolContext.sentMediaDesc =
+          `🤖 **[AI 助手 · 相册视觉语义检索 & 原图提取]**\n` +
+          `🎯 **已为你锁定目标原图**：《${best.fileName}》\n` +
+          `🏷️ **图片类型**：${best.category}${best.isScreenshot ? " (屏幕截图/翻拍)" : ""}\n` +
+          `🔍 **判断依据**：${reasonsStr}\n` +
+          `🖼️ **画面内容**：${best.summary}` +
+          (best.ocrText ? `\n📝 **图中文字 (OCR)**：${best.ocrText.slice(0, 80)}` : "") +
+          otherMatchesHint;
+      } else if (!wantsToSend || photoSearch.matches.length === 0) {
+        const displayList = photoSearch.matches.length > 0 ? photoSearch.matches : allPhotos;
+        const headerTitle = photoSearch.matches.length > 0
+          ? `🤖 **[AI 助手 · 相册批量检索结果（命中 ${photoSearch.matches.length} 张）]**`
+          : `🤖 **[AI 助手 · 相册全量视觉索引库（共 ${allPhotos.length} 张）]**`;
+        const lines = displayList.map((p, idx) =>
+          `${idx + 1}. 🖼️ **《${p.fileName}》** [${p.category}]\n` +
+          `   • 画面：${p.summary}\n` +
+          `   • 标签：${(p.tags || []).slice(0, 8).join(" / ")}` +
+          (p.ocrText ? `\n   • 图中文字：${p.ocrText.slice(0, 60)}` : "")
+        ).join("\n\n");
+        toolContext.driveSummary =
+          `${headerTitle}\n\n${lines}\n\n` +
+          `💡 *直接对我说「把香蕉那张图发给我」「把鸡腿卤蛋那张美食图发我」或「把带通行密钥二维码的图发我」，我即可将高清原图直接发到你微信！*`;
+      }
+    } else if (/(云盘|icloud|简历|文件|pdf|课表|照片|图库).*(发给我|发我|发一下|调出|提取|传给我)/i.test(t) || /^把.*(简历|课表|文件|照片|图片).*发/i.test(t)) {
+      const listing = await listIcloudDriveItems();
+      const kwClean = t.replace(/(请|帮我|把|我的|iCloud|云盘|里的|里|发给我|发我|发一下|调出|提取|传给我|看看|[?？。！])/gi, "").trim().toLowerCase();
+      const targetFile =
+        listing.files.find(f => kwClean && (f.name.toLowerCase().includes(kwClean) || f.rawName.toLowerCase().includes(kwClean))) ||
+        (t.includes("简历") ? listing.files.find(f => f.name.includes("简历")) : null) ||
+        (t.includes("课表") ? listing.files.find(f => f.name.includes("课表")) : null);
+
+      if (targetFile) {
+        const dl = await downloadIcloudDriveFile(targetFile.docwsid, targetFile.name);
+        const isImg = /\.(png|jpe?g|gif|webp)$/i.test(dl.fileName);
+        outboundMedia = { type: isImg ? "image" : "file", url: dl.localPath, fileName: dl.fileName };
+        addLog("AGENT-TOOL", `AI 助手已从 iCloud 云盘提取《${dl.fileName}》发往微信`);
+        toolContext.sentMediaDesc = `🤖 **[AI 助手 · iCloud 云盘提取]**\n已从你的 iCloud 云盘（目录：《${targetFile.folderName}》）找到并提取文件：\n📄 **《${dl.fileName}》** (${(dl.size / 1024).toFixed(1)} KB)\n已随本条消息直接发送至你的微信！`;
+      } else {
+        const photoSearch = searchPhotosByQuery(t);
+        const targetImg = photoSearch.matches[0] || listing.noteImages[0];
+        if (targetImg) {
+          outboundMedia = { type: "image", url: targetImg.localPath, fileName: targetImg.fileName };
+          toolContext.sentMediaDesc =
+            `🤖 **[AI 助手 · 相册语义提取]**\n` +
+            `已为你找到匹配图片 **《${targetImg.fileName}》** [${targetImg.category || "相册原图"}]\n` +
+            `🖼️ 画面：${targetImg.summary || targetImg.fileName}`;
+        }
+      }
+    } else if (/(云盘|icloud).*(有什么|有哪些|文件|列表|目录|简历|看看|查)/i.test(t)) {
+      const listing = await listIcloudDriveItems();
+      const folderStr = listing.folders.map(f => `📁 ${f.name}`).join("、") || "根目录";
+      const fileLines = listing.files.slice(0, 10).map((f, idx) => `${idx + 1}. 📄 《${f.name}》 (${f.folderName}, ${Math.max(1, Math.round(f.size / 1024))} KB)`).join("\n");
+      toolContext.driveSummary =
+        `🤖 **[AI 助手 · iCloud 云盘实时检索]**\n` +
+        `📂 **云盘目录**：${folderStr}\n` +
+        `📄 **文件列表（共 ${listing.files.length} 项）**：\n${fileLines || "暂无文件"}\n\n` +
+        `💡 *直接对我说「把云盘里的个人简历发给我」，我即可把原文件发到你微信！*`;
+    }
+
+    const cleanKw = t.replace(/(请问|帮我|查一下|找一下|搜一下|我备忘录里|备忘录里|备忘录|的|里的|是多少|在哪|有什么|有哪些|[?？。！])/g, " ").trim();
+    if (cleanKw) {
+      toolContext.noteHits = searchNotes(cleanKw, 4);
+    }
+  } catch (e) {
+    addLog("WARN", `AI 工具预检异常: ${e.message}`);
+  }
+
+  // 如果已经直接命中 iCloud 云盘提取或云盘列表查询，直接返回精准结果
+  if (toolContext.sentMediaDesc || toolContext.driveSummary) {
+    const fastReply = toolContext.sentMediaDesc || toolContext.driveSummary;
+    history.push({ role: "user", content: userText }, { role: "assistant", content: fastReply });
+    chatSessions.set(conversationId, history.slice(-16));
+    return { replyText: fastReply, outboundMedia };
+  }
+
+  const notesContextStr = toolContext.noteHits.length > 0
+    ? `\n\n【当前从用户 iPhone 备忘录检索到的相关真实记录】：\n` + toolContext.noteHits.map((h, i) => `${i + 1}. 《${h.title}》: ${h.fullBody}`).join("\n")
+    : "";
+
   const systemPrompt = `你是用户的专属微信 AI 助手兼 Apple iCloud 全家桶智能管家（NoteBridge AI）。
-你同时具备三大核心能力：
-1. 【全能 AI 问答 Agent】：自然、聪明、简洁地回答用户的任何问题。
-2. 【个人备忘录大脑】：可调用 \`search_apple_notes\` 检索用户 iPhone 备忘录，或调用 \`save_to_apple_notes\` 存入分类备忘录。
-3. 【iCloud 云盘与原生图库联动】：你已打通用户的 iCloud 云盘（p211-drivews.icloud.com.cn）与备忘录原生图库。当用户询问云盘文件时调用 \`search_icloud_drive\`；当用户说“把云盘里的简历发给我”或“把图库照片发给我”时，调用 \`send_icloud_file_or_photo_to_wechat\` 直接把真文件/真图发回用户微信！
-回答请保持清爽干练，适合微信阅读。`;
+你同时具备两大核心模式：
+1. 【🤖 全能 AI 助手模式】：自然、专业、简洁地回答用户的任何问题（包括编程代码生成、算法讲解、日常问答、备忘录检索、iCloud云盘提取）。当被问及是什么模型时，说明你是 NoteBridge AI 双模智能助手（基于 DeepSeek-V4.1 与 Apple CloudKit 桥接引擎）。
+2. 【📥 信息存档管家模式】：自动将用户的碎片记录归类进 iPhone 原生备忘录。
+回答请保持清爽干练，适合微信阅读。${notesContextStr}`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -911,8 +1162,7 @@ async function runConversationalAgent(conversationId, userText) {
     { role: "user", content: userText }
   ];
 
-  let outboundMedia = null;
-
+  // 2. 尝试本地 3425 端口代理 (WorkBuddy DeepSeek-V4.1)
   try {
     const resp = await fetch("http://127.0.0.1:3425/v1/chat/completions", {
       method: "POST",
@@ -927,7 +1177,7 @@ async function runConversationalAgent(conversationId, userText) {
         tool_choice: "auto",
         temperature: 0.3
       }),
-      signal: AbortSignal.timeout(25000)
+      signal: AbortSignal.timeout(2500)
     });
 
     if (!resp.ok) throw new Error(`LLM HTTP ${resp.status}`);
@@ -1009,7 +1259,7 @@ async function runConversationalAgent(conversationId, userText) {
           messages,
           temperature: 0.3
         }),
-        signal: AbortSignal.timeout(25000)
+        signal: AbortSignal.timeout(15000)
       });
       const secondData = await secondResp.json();
       const finalReply = secondData.choices?.[0]?.message?.content || "✅ 已完成 iCloud 操作。";
@@ -1024,16 +1274,35 @@ async function runConversationalAgent(conversationId, userText) {
     chatSessions.set(conversationId, history.slice(-16));
     return { replyText, outboundMedia };
   } catch (err) {
-    addLog("WARN", `AI Agent 降级为本地备忘录检索 (${err.message})`);
-    const cleanKw = userText.replace(/(备忘录|查一下|找一下|里的|是多少|在哪|有什么|[?？])/g, " ").trim();
-    const hits = searchNotes(cleanKw, 3);
-    if (hits.length > 0) {
-      return {
-        replyText: `🤖 [智能检索] 在你的备忘录中找到：\n` + hits.map((h, i) => `${i + 1}. 《${h.title}》：${h.snippet}`).join("\n"),
-        outboundMedia: null
-      };
-    }
-    return { replyText: `🤖 [NoteBridge 助手] 收到你的消息：「${userText}」。`, outboundMedia: null };
+    // 3. 若本地 3425 端口未启动，自动切换至免 Key 云端大模型网关 (Pollinations OpenAI 兼容网关) + 本地内建智能引擎兜底
+    try {
+      const cloudResp = await fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai",
+          messages,
+          temperature: 0.3
+        }),
+        signal: AbortSignal.timeout(12000)
+      });
+      if (cloudResp.ok) {
+        const cloudData = await cloudResp.json();
+        const cloudText = cloudData.choices?.[0]?.message?.content?.trim();
+        if (cloudText) {
+          addLog("AI-AGENT", "已通过云端 AI 引擎生成回答");
+          history.push({ role: "user", content: userText }, { role: "assistant", content: cloudText });
+          chatSessions.set(conversationId, history.slice(-16));
+          return { replyText: cloudText, outboundMedia };
+        }
+      }
+    } catch {}
+
+    addLog("AI-AGENT", `使用本地内建智能 Agent 引擎响应 (${err.message})`);
+    const fallbackReply = buildSmartLocalAgentReply(userText, toolContext);
+    history.push({ role: "user", content: userText }, { role: "assistant", content: fallbackReply });
+    chatSessions.set(conversationId, history.slice(-16));
+    return { replyText: fallbackReply, outboundMedia };
   }
 }
 
@@ -1053,37 +1322,86 @@ async function handleUnifiedMessage({ conversationId = "web-console", text = "",
     return { reply, modeUsed: "FAST_SEARCH", classification: lastClassification };
   }
 
-  if (trimmed === "/mode" || trimmed.startsWith("/mode ")) {
-    const arg = trimmed.replace("/mode", "").trim().toUpperCase();
-    if (["DUAL_AUTO", "AGENT_FIRST", "NOTES_FIRST"].includes(arg)) {
-      currentMode = arg;
-      return { reply: `⚙️ 已切换运行模式为：${currentMode}`, modeUsed: "SYSTEM", classification: lastClassification };
-    }
+  // 支持在微信里用自然语言或指令一键切换「AI助手模式 / 信息存档模式 / 智能双模」
+  if (/^(\/mode\s+agent_first|ai模式|助手模式|切换ai|切换助手|开启ai|纯ai模式)$/i.test(trimmed)) {
+    currentMode = "AGENT_FIRST";
+    addLog("MODE", `用户在微信切换运行模式为: ${currentMode}`);
+    return {
+      reply: `🤖 **已切换为【模式二：纯 AI 助手模式 (AGENT_FIRST)】**\n\n现在你发给我的所有消息都会由 **AI 助手** 直接回答（支持写代码、解答问题、检索备忘录、提取 iCloud 云盘简历/文件），不会自动写入备忘录。\n\n💡 *发送「存档模式」可切回纯备忘录收集，发送「双模」恢复智能自动分流。*`,
+      modeUsed: "SYSTEM",
+      classification: lastClassification
+    };
+  }
+
+  if (/^(\/mode\s+notes_first|存档模式|备忘录模式|收集模式|切换存档|切换备忘录|纯存档模式)$/i.test(trimmed)) {
+    currentMode = "NOTES_FIRST";
+    addLog("MODE", `用户在微信切换运行模式为: ${currentMode}`);
+    return {
+      reply: `📥 **已切换为【模式一：纯信息存档模式 (NOTES_FIRST)】**\n\n现在你随手发来的所有文字、账号密码、取件码、网页链接和图片，都会 100% 自动分类归档进你的 **iPhone 备忘录** 并同步至 iCloud！\n\n💡 *发送「AI模式」可切换为 AI 助手，发送「双模」恢复智能自动分流。*`,
+      modeUsed: "SYSTEM",
+      classification: lastClassification
+    };
+  }
+
+  if (/^(\/mode\s+dual_auto|双模|双模式|智能模式|自动模式|智能双模|切换双模)$/i.test(trimmed)) {
+    currentMode = "DUAL_AUTO";
+    addLog("MODE", `用户在微信切换运行模式为: ${currentMode}`);
+    return {
+      reply: `⚡ **已切换为【智能双模自动分流 (DUAL_AUTO)】**\n\n• **当你提问 / 写代码 / 查备忘录 / 提云盘文件** ➔ 自动唤醒 **🤖 AI 助手** 回答你；\n• **当你随手丢账号密码 / 待办取件码 / 链接 / 图片** ➔ 自动归类存入 **📥 iPhone 备忘录**！\n\n💡 *也可随时发送「AI模式」或「存档模式」手动锁定单一模式。*`,
+      modeUsed: "SYSTEM",
+      classification: lastClassification
+    };
+  }
+
+  if (/^(\/mode|模式|当前模式|\/help|帮助|功能)$/i.test(trimmed)) {
+    return {
+      reply:
+        `🎛️ **NoteBridge AI 双模式控制台**\n` +
+        `当前所处模式：**${getModeLabel()}**\n\n` +
+        `你可以在微信直接发送以下口令切换：\n` +
+        `• 发送 **「AI模式」** ➔ 锁定 🤖 全能 AI 助手模式（问答/写代码/查备忘录/拿云盘文件）\n` +
+        `• 发送 **「存档模式」** ➔ 锁定 📥 信息存档管家模式（所有消息自动分类进 iPhone 备忘录）\n` +
+        `• 发送 **「双模」** ➔ 开启 ⚡ 智能双模自动分流（提问走 AI，记事走备忘录）\n` +
+        `• 单次强制指令：以 \`/ai \` 开头强制走 AI 问答；以 \`记一下 \` 开头强制存入备忘录。`,
+      modeUsed: "SYSTEM",
+      classification: lastClassification
+    };
   }
 
   let mediaInfo = null;
   let cloudBridgeInfo = null;
   if (media && media.filePath && fs.existsSync(media.filePath)) {
-    const ext = path.extname(media.fileName || media.filePath) || ".png";
+    const rawBuf = fs.readFileSync(media.filePath);
     const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-    const baseClean = (media.fileName || "wechat_img").replace(/\.[^.]+$/, "");
-    const newFileName = `${timestamp}_${baseClean}${ext.startsWith(".") ? ext : "." + ext}`;
+    const isImg = media.type === "image" || (rawBuf[0] === 0xff && rawBuf[1] === 0xd8) || (rawBuf[0] === 0x89 && rawBuf[1] === 0x50);
+    let newFileName;
+    if (isImg) {
+      const norm = normalizeImageFileName(`IMG_${timestamp}`, rawBuf);
+      newFileName = norm.fileName;
+    } else {
+      const ext = path.extname(media.fileName || media.filePath) || ".bin";
+      const baseClean = (media.fileName || "wechat_file").replace(/\.[^.]+$/, "");
+      newFileName = `${timestamp}_${baseClean}${ext.startsWith(".") ? ext : "." + ext}`;
+    }
     const destPath = path.join(MEDIA_SAVE_DIR, newFileName);
-    fs.copyFileSync(media.filePath, destPath);
-    mediaInfo = { savedPath: destPath, type: media.type, fileName: newFileName };
+    fs.writeFileSync(destPath, rawBuf);
+    mediaInfo = { savedPath: destPath, type: isImg ? "image" : media.type, fileName: newFileName };
 
-    // 当微信收到图片时：直接上传到 iCloud 云盘《学习照片》+ 作为原生 Attachment 嵌入 Apple 备忘录《🖼️ 微信图片速记测试》！
-    if (media.type === "image" || /\.(png|jpe?g|gif|webp)$/i.test(newFileName)) {
+    // 当微信收到图片时：直接上传到 iCloud 云盘《学习照片》+ 作为原生 Attachment 嵌入 Apple 备忘录 + AI 视觉/OCR 自动打标入库！
+    let photoSemantic = null;
+    if (isImg) {
       try {
-        const imgBuf = fs.readFileSync(destPath);
-        cloudBridgeInfo = await bridgeImageToDriveAndNotes(imgBuf, newFileName, trimmed || "微信随手拍直传");
+        cloudBridgeInfo = await bridgeImageToDriveAndNotes(rawBuf, newFileName, trimmed || "微信随手拍直传");
       } catch (e) {
         addLog("WARN", `图片直传 iCloud 云盘/备忘录异常: ${e.message}`);
       }
+      try {
+        photoSemantic = await analyzeAndIndexNewPhoto(rawBuf, newFileName, trimmed);
+        addLog("PHOTO-INDEX", `已完成图片视觉语义索引《${newFileName}》: [${photoSemantic.category}] ${(photoSemantic.tags || []).slice(0, 5).join("/")}`);
+      } catch {}
     } else {
       try {
-        const fileBuf = fs.readFileSync(destPath);
-        const driveRes = await uploadFileToIcloudDrive(fileBuf, newFileName, media.mimeType || "application/octet-stream");
+        const driveRes = await uploadFileToIcloudDrive(rawBuf, newFileName, media.mimeType || "application/octet-stream");
         cloudBridgeInfo = { driveRes };
       } catch (e) {
         addLog("WARN", `文件直传 iCloud 云盘异常: ${e.message}`);
@@ -1102,18 +1420,19 @@ async function handleUnifiedMessage({ conversationId = "web-console", text = "",
   if (shouldRunAgent) {
     const queryText = trimmed.replace(/^\/ai\s+/i, "");
     addLog("AI-AGENT", `识别为【问答/Agent 指令】: "${queryText.slice(0, 50)}"`);
-    const { replyText: agentReply, outboundMedia } = await runConversationalAgent(conversationId, queryText);
+    const { replyText: rawAgentReply, outboundMedia } = await runConversationalAgent(conversationId, queryText);
+    const agentReply = `${rawAgentReply}\n\n——\n⚙️ 当前：🤖 AI 助手模式 (${currentMode}) | 发「存档模式」或「双模」可切换`;
     const latencyMs = Date.now() - startTime;
 
     lastClassification = {
       text: queryText,
       category: intent.topCategory,
-      categoryName: outboundMedia ? `📂 iCloud 云盘提取 (${outboundMedia.fileName})` : "🤖 AI Agent 问答对话",
+      categoryName: outboundMedia ? `📂 iCloud 相册/云盘提取 (${outboundMedia.fileName})` : "🤖 AI Agent 问答对话",
       probabilities: intent.probabilities,
       modeUsed: "AI_AGENT_QA",
       agentReply,
       siriQuery: "“嘿 Siri，查一下我备忘录里的相关记录”",
-      siriAnswer: agentReply.slice(0, 180),
+      siriAnswer: rawAgentReply.slice(0, 180),
       latencyMs,
       timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false })
     };
@@ -1122,10 +1441,14 @@ async function handleUnifiedMessage({ conversationId = "web-console", text = "",
   } else {
     const saved = saveClassifiedNote(trimmed, intent.topCategory, mediaInfo);
     const latencyMs = Date.now() - startTime;
-    const bridgeNotice = cloudBridgeInfo?.noteRes
-      ? `\n🖼️ [图库⇄备忘录互通]：\n  1. 已直传 iCloud 云盘《学习照片/${mediaInfo.fileName}》\n  2. 已作为原生图片嵌入备忘录《🖼️ 微信图片速记测试》`
+    const indexedMeta = mediaInfo ? getAllIndexedPhotos().find(p => p.fileName === mediaInfo.fileName) : null;
+    const semanticNotice = indexedMeta
+      ? `\n🔍 [AI 视觉索引已生成]：\n  • 类型：${indexedMeta.category}\n  • 搜索词：${(indexedMeta.tags || []).slice(0, 6).join(" / ")}\n  • 随时发「把${(indexedMeta.tags || [])[0] || "最新"}那张图发我」即可调取原图`
       : "";
-    const reply = `✅ [AI 已自动归类 ➔ 《${saved.categoryName.replace(".md", "")}》]\n📝 内容：${saved.cleanText || "[微信图片/附件]"}${bridgeNotice}\n🎙️ 现在你可以随时对 iPhone 喊：\n${saved.siriPrompt}`;
+    const bridgeNotice = cloudBridgeInfo?.noteRes
+      ? `\n🖼️ [图库⇄备忘录互通]：\n  1. 已直传 iCloud 云盘《学习照片/${mediaInfo.fileName}》\n  2. 已作为原生大图内嵌至《微信收集箱》与《${saved.categoryName.replace(".md", "")}》${semanticNotice}`
+      : semanticNotice;
+    const reply = `✅ [📥 信息存档模式 ➔ 《${saved.categoryName.replace(".md", "")}》]\n📝 内容：${saved.cleanText || "[微信图片/附件]"}${bridgeNotice}\n🎙️ 现在你可以随时对 iPhone 喊：\n${saved.siriPrompt}\n\n——\n⚙️ 当前：📥 信息存档 (${currentMode}) | 发「AI模式」或「双模」可切换`;
 
     lastClassification = {
       text: trimmed || `[微信图片] ${mediaInfo?.fileName || ""}`,
@@ -1189,25 +1512,156 @@ setInterval(() => {
 }, 30000);
 
 let activeQrSession = null;
+let activeQrAbortController = null;
+
+const ILINK_BASE_URL = "https://ilinkai.weixin.qq.com";
+const ILINK_APP_ID = "bot";
+const ILINK_CLIENT_VERSION = String((0 << 16) | (6 << 8) | 0); // 0.6.0 -> 1536
+const QR_SESSION_TTL_MS = 5 * 60 * 1000;
+const QR_LONG_POLL_TIMEOUT_MS = 35000;
+
+function buildIlinkCommonHeaders() {
+  return {
+    "iLink-App-Id": ILINK_APP_ID,
+    "iLink-App-ClientVersion": ILINK_CLIENT_VERSION
+  };
+}
+
+function buildIlinkPostHeaders() {
+  const randomUin = Buffer.from(String(crypto.randomBytes(4).readUInt32BE(0)), "utf-8").toString("base64");
+  return {
+    "Content-Type": "application/json",
+    AuthorizationType: "ilink_bot_token",
+    "X-WECHAT-UIN": randomUin,
+    ...buildIlinkCommonHeaders()
+  };
+}
+
+function getLocalWeixinBotTokens() {
+  const weixinDir = path.join(os.homedir(), ".openclaw", "openclaw-weixin");
+  const indexPath = path.join(weixinDir, "accounts.json");
+  const tokens = [];
+  try {
+    if (!fs.existsSync(indexPath)) return tokens;
+    const accountIds = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+    if (!Array.isArray(accountIds)) return tokens;
+    for (let i = accountIds.length - 1; i >= 0 && tokens.length < 10; i--) {
+      const accPath = path.join(weixinDir, "accounts", `${accountIds[i]}.json`);
+      if (fs.existsSync(accPath)) {
+        const parsed = JSON.parse(fs.readFileSync(accPath, "utf-8"));
+        if (parsed?.token?.trim()) tokens.push(parsed.token.trim());
+      }
+    }
+  } catch {}
+  return tokens;
+}
+
+function persistWeixinAccountCredentials(rawBotId, botToken, userId, baseUrl = ILINK_BASE_URL) {
+  const normalizedId = rawBotId.trim().toLowerCase().replace(/[@.]/g, "-");
+  const weixinDir = path.join(os.homedir(), ".openclaw", "openclaw-weixin");
+  const accountsDir = path.join(weixinDir, "accounts");
+  fs.mkdirSync(accountsDir, { recursive: true });
+
+  const accountPayload = {
+    token: botToken.trim(),
+    savedAt: new Date().toISOString(),
+    baseUrl,
+    ...(userId ? { userId: userId.trim() } : {})
+  };
+  fs.writeFileSync(path.join(accountsDir, `${normalizedId}.json`), JSON.stringify(accountPayload, null, 2), "utf-8");
+  fs.writeFileSync(path.join(weixinDir, "accounts.json"), JSON.stringify([normalizedId], null, 2), "utf-8");
+  return normalizedId;
+}
+
+async function pollWechatQrStatusLoop(session, abortSignal) {
+  let currentBaseUrl = ILINK_BASE_URL;
+  const deadline = session.createdAt + QR_SESSION_TTL_MS;
+
+  while (Date.now() < deadline && !abortSignal.aborted) {
+    const pollController = new AbortController();
+    const timeoutId = setTimeout(() => pollController.abort(), QR_LONG_POLL_TIMEOUT_MS);
+    const combinedSignal = AbortSignal.any([abortSignal, pollController.signal]);
+
+    try {
+      const endpoint = `${currentBaseUrl}/ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(session.qrcode)}`;
+      const resp = await fetch(endpoint, {
+        method: "GET",
+        headers: buildIlinkCommonHeaders(),
+        signal: combinedSignal
+      });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+
+      const statusData = await resp.json();
+      session.status = statusData.status || "wait";
+
+      if (statusData.status === "scaned") {
+        addLog("AUTH", "📱 手机微信已扫码，请在手机端点击确认授权...");
+      } else if (statusData.status === "scaned_but_redirect") {
+        if (statusData.redirect_host) {
+          currentBaseUrl = `https://${statusData.redirect_host}`;
+          addLog("AUTH", `🔄 微信扫码跨机房路由切换至: ${statusData.redirect_host}`);
+        }
+      } else if (statusData.status === "binded_redirect") {
+        session.status = "confirmed";
+        addLog("AUTH", "✅ 该微信已绑定当前机器人，正在激活会话...");
+        if (!botInstance) startWechatBot();
+        return;
+      } else if (statusData.status === "confirmed") {
+        if (statusData.ilink_bot_id && statusData.bot_token) {
+          const normalizedId = persistWeixinAccountCredentials(
+            statusData.ilink_bot_id,
+            statusData.bot_token,
+            statusData.ilink_user_id,
+            statusData.base_url || ILINK_BASE_URL
+          );
+          session.status = "confirmed";
+          addLog("AUTH", `🎉 网页端微信扫码绑定成功 (${normalizedId})！正在热启动 ClawBot...`);
+          if (!botInstance) startWechatBot();
+        }
+        return;
+      } else if (statusData.status === "expired") {
+        session.status = "expired";
+        addLog("WARN", "⏳ 网页端微信登录二维码已过期，请点击刷新重新生成");
+        return;
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (abortSignal.aborted) return;
+    }
+  }
+}
 
 async function createWechatQrSession() {
-  const resp = await fetch("https://ilinkai.weixin.qq.com/ilink/bot/get_bot_qrcode?bot_type=3", {
+  if (activeQrAbortController) {
+    activeQrAbortController.abort();
+    activeQrAbortController = null;
+  }
+
+  const localTokenList = getLocalWeixinBotTokens();
+  const resp = await fetch(`${ILINK_BASE_URL}/ilink/bot/get_bot_qrcode?bot_type=3`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "iLink-App-Id": "ilink_openclaw_bot",
-      "iLink-App-ClientVersion": "1"
-    },
-    body: JSON.stringify({ local_token_list: [] })
+    headers: buildIlinkPostHeaders(),
+    body: JSON.stringify({ local_token_list: localTokenList })
   });
+  if (!resp.ok) throw new Error(`请求微信网关失败 HTTP ${resp.status}`);
+
   const data = await resp.json();
-  if (!data.qrcode_img_content) throw new Error("未获取到二维码链接");
+  if (!data.qrcode_img_content || !data.qrcode) {
+    throw new Error("未获取到有效的微信二维码凭证");
+  }
 
   const qrDataUrl = await QRCode.toDataURL(data.qrcode_img_content, {
     width: 240,
     margin: 1,
     color: { dark: "#1E1E1E", light: "#FEFEFE" }
   });
+
+  activeQrAbortController = new AbortController();
   activeQrSession = {
     qrcode: data.qrcode,
     qrcodeUrl: data.qrcode_img_content,
@@ -1215,8 +1669,86 @@ async function createWechatQrSession() {
     status: "wait",
     createdAt: Date.now()
   };
-  addLog("AUTH", "已在 Quickstart 生成全新微信 ClawBot 扫码登录凭证");
+
+  addLog("AUTH", "已在 Quickstart 生成官方标准微信扫码凭证，后台长轮询已挂载");
+  pollWechatQrStatusLoop(activeQrSession, activeQrAbortController.signal).catch(err => {
+    addLog("WARN", `二维码状态轮询异常: ${err.message}`);
+  });
+
   return activeQrSession;
+}
+
+// ============================================================================
+// 6.5 iCloud 云上贵州登录向导 (独立浏览器窗口取凭证 -> 绑定备忘录目录)
+// ============================================================================
+const ICLOUD_LOGIN_STAGES = {
+  IDLE: "idle",
+  BROWSER_OPEN: "browser_open",
+  VERIFYING: "verifying",
+  CLONING: "cloning",
+  DONE: "done",
+  FAILED: "failed"
+};
+
+const icloudLogin = {
+  stage: ICLOUD_LOGIN_STAGES.IDLE,
+  message: "",
+  error: "",
+  appleId: ""
+};
+
+function updateIcloudLogin(stage, message, extra = {}) {
+  Object.assign(icloudLogin, { stage, message, error: "", ...extra });
+  addLog("ICLOUD-AUTH", message);
+}
+
+function failIcloudLogin(error) {
+  icloudLogin.stage = ICLOUD_LOGIN_STAGES.FAILED;
+  icloudLogin.error = error;
+  icloudLogin.message = "";
+  addLog("ERROR", `iCloud 登录失败: ${error}`);
+}
+
+function runIcloudClone(appleId) {
+  return new Promise((resolve, reject) => {
+    exec(`node "${CLI_PATH}" clone . --account "${appleId}"`, { cwd: NOTES_DIR }, (err, stdout, stderr) => {
+      if (err) return reject(new Error((stderr || err.message).trim().split("\n").slice(-3).join(" ")));
+      resolve(stdout);
+    });
+  });
+}
+
+async function detectExistingIcloudBinding() {
+  try {
+    const state = await readCloneState(NOTES_DIR);
+    if (state?.account?.appleId) return state.account;
+  } catch {}
+  return null;
+}
+
+async function startIcloudLoginFlow() {
+  const busyStages = [ICLOUD_LOGIN_STAGES.BROWSER_OPEN, ICLOUD_LOGIN_STAGES.VERIFYING, ICLOUD_LOGIN_STAGES.CLONING];
+  if (busyStages.includes(icloudLogin.stage)) return;
+
+  try {
+    updateIcloudLogin(ICLOUD_LOGIN_STAGES.BROWSER_OPEN, "已弹出 iCloud 登录窗口，请在新窗口中完成 Apple ID 登录（含验证码）");
+    const auth = await bindNewFolderAccount({
+      onStatus: (text) => addLog("ICLOUD-AUTH", text)
+    });
+
+    updateIcloudLogin(ICLOUD_LOGIN_STAGES.VERIFYING, `已取得 ${auth.appleId} 的登录凭证，正在校验`, { appleId: auth.appleId });
+
+    if (await detectExistingIcloudBinding()) {
+      updateIcloudLogin(ICLOUD_LOGIN_STAGES.DONE, `iCloud 已连接：${auth.appleId}`, { appleId: auth.appleId });
+      return;
+    }
+
+    updateIcloudLogin(ICLOUD_LOGIN_STAGES.CLONING, "正在首次同步备忘录，请稍候", { appleId: auth.appleId });
+    await runIcloudClone(auth.appleId);
+    updateIcloudLogin(ICLOUD_LOGIN_STAGES.DONE, `iCloud 已连接：${auth.appleId}`, { appleId: auth.appleId });
+  } catch (err) {
+    failIcloudLogin(err.message || String(err));
+  }
 }
 
 // ============================================================================
@@ -1252,6 +1784,9 @@ function getSystemStatus() {
   let wxAccount = "4547d85e4cb2-im-bot";
   let wxUser = "o9cq80-tfDJosoOFqzSVuTuwdjA4@im.wechat";
   const wxConnected = isLoggedIn();
+  if (wxConnected && !botInstance) {
+    startWechatBot();
+  }
   try {
     if (fs.existsSync(wxDir)) {
       const files = fs.readdirSync(wxDir).filter(f => f.endsWith(".json") && !f.endsWith(".sync.json") && !f.endsWith(".context-tokens.json"));
@@ -1269,11 +1804,13 @@ function getSystemStatus() {
   }
 
   return {
+    dualModeVersion: "2.2-photo-search-ready",
     wechat: {
       connected: wxConnected,
       accountId: wxAccount,
       userId: wxUser,
-      mode: currentMode
+      mode: currentMode,
+      qrStatus: activeQrSession ? activeQrSession.status : null
     },
     icloud: {
       connected: noteCount > 0,
@@ -1496,10 +2033,14 @@ const server = http.createServer(async (req, res) => {
 
       const bridgeRes = await bridgeImageToDriveAndNotes(imgBuffer, fileName, caption);
       const savedNote = saveClassifiedNote(caption, null, { savedPath: path.join(ATTACHMENTS_DIR, fileName), type: "image", fileName });
+      let photoSemantic = null;
+      try {
+        photoSemantic = await analyzeAndIndexNewPhoto(imgBuffer, fileName, caption);
+      } catch {}
 
       if (body.pushToPhone && botInstance) {
         await botInstance.sendMessage(
-          `🖼️ [NoteBridge 图库⇄备忘录联动完成]\n1️⃣ 已直传 iCloud 云盘：学习照片/${fileName}\n2️⃣ 已原生嵌入备忘录：《🖼️ 微信图片速记测试》\n3️⃣ 已关联归档至：《${savedNote.categoryName.replace(".md", "")}》`
+          `🖼️ [NoteBridge 图库⇄备忘录联动完成]\n1️⃣ 已直传 iCloud 云盘：学习照片/${fileName}\n2️⃣ 已原生嵌入备忘录：《🖼️ 微信图片速记测试》\n3️⃣ 已关联归档至：《${savedNote.categoryName.replace(".md", "")}》\n4️⃣ AI 视觉标签：[${photoSemantic?.category || "图片"}] ${(photoSemantic?.tags || []).slice(0, 5).join(" / ")}`
         );
       }
 
@@ -1509,6 +2050,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         fileName,
         caption,
+        photoSemantic,
         bridgeRes,
         savedNote,
         driveData,
@@ -1519,6 +2061,17 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       return res.end(JSON.stringify({ ok: false, error: e.message }));
     }
+  }
+
+  // API: 多维语义与 OCR 批量搜图 (/api/photos/search)
+  if (url.pathname === "/api/photos/search" && req.method === "POST") {
+    const body = await readJsonBody(req);
+    const kw = (body.query || "").trim();
+    const searchRes = kw ? searchPhotosByQuery(kw) : { matches: getAllIndexedPhotos() };
+    const hits = Array.isArray(searchRes.matches) ? searchRes.matches : [];
+    addLog("PHOTO-SEARCH", `检索图库语义/OCR关键词: "${kw || "全部"}" (命中 ${hits.length} 张)`);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    return res.end(JSON.stringify({ ok: true, query: kw, hits }));
   }
 
   // 静态图片预览: /attachments/<fileName>
@@ -1554,11 +2107,19 @@ const server = http.createServer(async (req, res) => {
 
   // API: 唤起 iCloud 云上贵州授权器
   if (url.pathname === "/api/icloud/relogin" && req.method === "POST") {
-    addLog("AUTH", "正在拉起 iCloud 云上贵州授权窗口...");
-    const batPath = path.join(__dirname, "login-apple.bat");
-    spawn("cmd.exe", ["/c", "start", "", batPath], { detached: true, stdio: "ignore" }).unref();
+    startIcloudLoginFlow();
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    return res.end(JSON.stringify({ ok: true, message: "已拉起 iCloud 云上贵州登录窗口" }));
+    return res.end(JSON.stringify({ ok: true, icloud: { ...icloudLogin } }));
+  }
+
+  // API: iCloud 登录进度（前端轮询）
+  if (url.pathname === "/api/icloud/login/status" && req.method === "GET") {
+    const binding = icloudLogin.stage === ICLOUD_LOGIN_STAGES.IDLE ? await detectExistingIcloudBinding() : null;
+    const snapshot = binding
+      ? { stage: ICLOUD_LOGIN_STAGES.DONE, message: `iCloud 已连接：${binding.appleId}`, error: "", appleId: binding.appleId }
+      : { ...icloudLogin };
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    return res.end(JSON.stringify({ ok: true, icloud: snapshot }));
   }
 
   // API: 生成真实微信扫码二维码

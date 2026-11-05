@@ -173,11 +173,22 @@
       </button>
     </nav>
 
-    <div class="pointer-events-auto flex items-center">
-      <button onclick="navigateView('playground')" class="bg-[#FEFEFE] border-b border-l border-[#1E1E1E]/25 px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 hover:bg-[#E5E5E5]">
+    <div class="pointer-events-auto flex items-center bg-[#FEFEFE] border-b border-l border-[#1E1E1E]/25 font-mono-ts">
+      <div class="hidden md:flex items-center divide-x divide-[#1E1E1E]/20 border-r border-[#1E1E1E]/25 text-[11px]">
+        <button onclick="setBotMode('DUAL_AUTO')" id="nav-mode-DUAL_AUTO" title="提问走AI助手，记事走备忘录" class="px-2.5 py-2 bg-[#1E1E1E] text-white font-bold">
+          ⚡ 双模分流
+        </button>
+        <button onclick="setBotMode('NOTES_FIRST')" id="nav-mode-NOTES_FIRST" title="所有消息存入iPhone备忘录" class="px-2.5 py-2 hover:bg-[#E5E5E5]">
+          📥 信息存档
+        </button>
+        <button onclick="setBotMode('AGENT_FIRST')" id="nav-mode-AGENT_FIRST" title="所有消息由AI助手回答" class="px-2.5 py-2 hover:bg-[#E5E5E5]">
+          🤖 AI 助手
+        </button>
+      </div>
+      <button onclick="navigateView('playground')" class="bg-[#FEFEFE] px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 hover:bg-[#E5E5E5]">
         <span class="font-mono-ts">->]</span> <span id="top-session-label">Playground Console</span>
       </button>
-      <button onclick="navigateView('quickstart')" class="bg-[#1E1E1E] text-[#FEFEFE] border-b border-[#1E1E1E] px-4 py-2 text-xs font-medium hover:bg-black">
+      <button onclick="navigateView('quickstart')" class="bg-[#1E1E1E] text-[#FEFEFE] px-4 py-2 text-xs font-medium hover:bg-black">
         Quickstart
       </button>
     </div>
@@ -506,15 +517,15 @@
             <span class="ts-tag-black">PASSWORDLESS WECHAT LOGIN</span>
             <h3 class="text-xl font-sans font-semibold tracking-tight">扫码即登录：无需注册账号，微信 UserID 即你的专属身份</h3>
             
-            <div id="wiz-wx-detected-box" class="p-3.5 bg-[#38B86B]/20 border border-[#1E1E1E] space-y-1">
-              <div class="font-bold">✓ 已自动识别到你的微信绑定会话：</div>
+            <div id="wiz-wx-detected-box" class="p-3.5 bg-[#E5E5E5] border border-[#1E1E1E] space-y-1">
+              <div id="wiz-wx-state-title" class="font-bold">正在检测微信登录状态...</div>
               <div id="wiz-wx-account-text" class="text-[11px]">账号: 4547d85e4cb2-im-bot</div>
-              <div class="text-[11px] text-neutral-700">你可以直接点击下方按钮进入下一步，或重新扫码切换微信。</div>
+              <div id="wiz-wx-state-hint" class="text-[11px] text-neutral-700">请点击左侧「生成 / 刷新真实微信二维码」，用手机微信扫码并在手机上确认。</div>
             </div>
 
             <div class="pt-3 flex gap-3">
-              <button onclick="switchWizardStep(2)" class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black">
-                微信身份已确认，进入 STEP 02 (iCloud 授权) ->
+              <button id="wiz-next-1" onclick="switchWizardStep(2)" disabled class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed">
+                微信登录成功，进入 STEP 02 (iCloud 授权) ->
               </button>
             </div>
           </div>
@@ -553,8 +564,8 @@
             <button onclick="triggerRealIcloudSync(this)" class="w-full border border-[#1E1E1E] bg-[#E5E5E5] py-2 text-xs font-bold hover:bg-[#1E1E1E] hover:text-white">
               ↻ 测试执行一次 iCloud Pull & Push
             </button>
-            <button onclick="triggerIcloudRelogin()" class="w-full border border-[#1E1E1E] bg-[#FEFEFE] py-2 text-xs hover:bg-[#E5E5E5]">
-              🔑 重新弹出云上贵州苹果登录窗 (如需换号)
+            <button id="wiz-ic-btn" onclick="startIcloudLogin()" class="w-full border border-[#1E1E1E] bg-[#FEFEFE] py-2 text-xs font-bold hover:bg-[#E5E5E5] disabled:opacity-40 disabled:cursor-not-allowed">
+              🔑 登录 iCloud（弹出独立登录窗口）
             </button>
           </div>
 
@@ -563,15 +574,15 @@
             <h3 class="text-xl font-sans font-semibold tracking-tight">连接你的 iPhone 原生备忘录，打通 Siri 语音检索</h3>
 
             <div class="p-3.5 bg-[#38B86B]/20 border border-[#1E1E1E] space-y-1">
-              <div class="font-bold">✓ 已内置中国大陆（云上贵州 `.icloud.com.cn`）专属协议补丁</div>
-              <div class="text-[11px] text-neutral-700">你的真实备忘录库已拉取就绪，无需重复登录即可直接进入 Playground！</div>
+              <div id="wiz-ic-title" class="font-bold">尚未登录 iCloud</div>
+              <div id="wiz-ic-hint" class="text-[11px] text-neutral-700">点击左侧「登录 iCloud」，会弹出一个独立浏览器窗口，在里面完成 Apple ID 登录（含验证码）。登录成功后本页自动继续。</div>
             </div>
 
             <div class="pt-3 flex gap-3">
               <button onclick="switchWizardStep(1)" class="border border-[#1E1E1E] px-4 py-3 text-xs">
                 <- 上一步
               </button>
-              <button onclick="switchWizardStep(3)" class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black">
+              <button id="wiz-next-2" onclick="switchWizardStep(3)" disabled class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed">
                 完成验证，进入 STEP 03 ->
               </button>
             </div>
@@ -641,21 +652,27 @@
       <!-- =============================================================== -->
       <div id="cpanel-operator" class="space-y-6">
         
-        <div class="border border-[#1E1E1E] bg-[#FEFEFE] p-3.5 font-mono-ts text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <span class="ts-tag-black">ACTIVE ROUTING MODE</span>
-            <span class="ml-2 font-semibold">切换微信机器人的响应策略（手机微信实时同步生效）：</span>
+        <div class="border-2 border-[#1E1E1E] bg-[#FEFEFE] p-4 font-mono-ts text-xs space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <span class="ts-tag-black">DUAL-MODE ENGINE // 双模式切换中枢</span>
+              <span class="ml-2 font-bold">一键切换「📥 模式一：信息存档管家」与「🤖 模式二：全能 AI 助手」（手机微信实时同步生效）：</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <button onclick="setBotMode('DUAL_AUTO')" id="mode-btn-DUAL_AUTO" class="px-3 py-1.5 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold">
+                ⚡ 智能双模 (DUAL_AUTO：提问走AI / 记事走备忘录)
+              </button>
+              <button onclick="setBotMode('NOTES_FIRST')" id="mode-btn-NOTES_FIRST" class="px-3 py-1.5 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
+                📥 模式一：信息存档模式 (NOTES_FIRST)
+              </button>
+              <button onclick="setBotMode('AGENT_FIRST')" id="mode-btn-AGENT_FIRST" class="px-3 py-1.5 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
+                🤖 模式二：全能 AI 助手模式 (AGENT_FIRST)
+              </button>
+            </div>
           </div>
-          <div class="flex flex-wrap gap-1.5">
-            <button onclick="setBotMode('DUAL_AUTO')" id="mode-btn-DUAL_AUTO" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold">
-              ● DUAL_AUTO (智能双模：问答走AI / 随手记走备忘录)
-            </button>
-            <button onclick="setBotMode('AGENT_FIRST')" id="mode-btn-AGENT_FIRST" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
-              AGENT_FIRST (全量 AI 问答)
-            </button>
-            <button onclick="setBotMode('NOTES_FIRST')" id="mode-btn-NOTES_FIRST" class="px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E]">
-              NOTES_FIRST (纯静默归档)
-            </button>
+          <div class="bg-[#E5E5E5] border border-[#1E1E1E]/30 px-3 py-2 text-[11px] flex flex-wrap items-center justify-between gap-2">
+            <span>💬 <strong>手机微信直接发送口令也能秒切：</strong>发 <code>AI模式</code> 切换为纯 AI 助手 | 发 <code>存档模式</code> 切换为纯备忘录存档 | 发 <code>双模</code> 恢复智能自动分流</span>
+            <span class="font-bold text-emerald-800">● 微信端 & 网页端双向实时同步</span>
           </div>
         </div>
 
@@ -678,12 +695,16 @@
               </div>
 
               <div>
-                <div class="text-[11px] font-bold mb-1.5">B. 测试「原生 AI 问答 Agent + 检索真备忘录 + 提取 iCloud 云盘文件」：</div>
+                <div class="text-[11px] font-bold mb-1.5">B. 测试「原生 AI 问答 Agent + 语义/OCR 搜图发微信 + 提取云盘文件」：</div>
                 <div class="flex flex-wrap gap-1.5">
-                  <button onclick="quickFillAndRun('帮我查一下我备忘录里转专业邢小东老师办公室在哪？')" class="ts-chip-btn">❖ 问 AI 查真备忘录</button>
-                  <button onclick="quickFillAndRun('查一下我 iCloud 云盘里有什么简历和文件？')" class="ts-chip-btn">❖ 问 AI 查 iCloud 云盘</button>
-                  <button onclick="quickFillAndRun('把我 iCloud 云盘里的艾梦凯个人简历发给我')" class="ts-chip-btn bg-[#F386A1]/30 font-bold">❖ 让 AI 把云盘简历发我微信</button>
-                  <button onclick="switchConsoleTab('drive')" class="ts-chip-btn bg-[#38B86B]/30 font-bold">❖ 打开「图库⇄备忘录」直传面板 -></button>
+                  <button onclick="quickFillAndRun('把我相册里剥香蕉的那张照片发给我')" class="ts-chip-btn bg-[#F386A1]/40 font-bold">❖ 搜画面：把「剥香蕉」照片发我</button>
+                  <button onclick="quickFillAndRun('把图上有通行密钥二维码的那张截图发给我')" class="ts-chip-btn bg-[#F386A1]/40 font-bold">❖ 搜图中字：把「通行密钥二维码」发我</button>
+                  <button onclick="quickFillAndRun('把相册里鸡腿盒饭那张美食图发给我')" class="ts-chip-btn bg-[#F386A1]/40 font-bold">❖ 搜类型：把「鸡腿盒饭美食图」发我</button>
+                  <button onclick="quickFillAndRun('你这里用的是什么模型')" class="ts-chip-btn bg-[#38B86B]/25 font-bold">❖ 问 AI：你用的是什么模型</button>
+                  <button onclick="quickFillAndRun('给我生成冒泡排序算法')" class="ts-chip-btn bg-[#38B86B]/25 font-bold">❖ 让 AI 生成冒泡排序算法</button>
+                  <button onclick="quickFillAndRun('帮我查一下我备忘录里的宽带密码是多少？')" class="ts-chip-btn">❖ 问 AI 查真备忘录</button>
+                  <button onclick="quickFillAndRun('把我 iCloud 云盘里的艾梦凯个人简历发给我')" class="ts-chip-btn bg-[#F386A1]/25 font-bold">❖ 让 AI 把云盘简历发我微信</button>
+                  <button onclick="switchConsoleTab('drive')" class="ts-chip-btn bg-[#38B86B]/30 font-bold">❖ 打开「图库视觉索引 & 批量搜索」-></button>
                 </div>
               </div>
 
@@ -870,15 +891,30 @@
               </div>
             </div>
 
-            <!-- Synced Apple Notes Native Image Gallery -->
+            <!-- Synced Apple Notes Native Image Gallery + AI Vision/OCR Search -->
             <div class="ts-os-window">
               <div class="ts-os-titlebar">
-                <span>NOTES.ATTACHMENTS // 备忘录原生图库实景</span>
-                <span>ATTACHMENTS/</span>
+                <span>NOTES.ATTACHMENTS // 图库 AI 视觉 & OCR 批量检索引擎</span>
+                <span>VISION + OCR INDEX</span>
               </div>
-              <div class="ts-os-window-inner bg-[#FEFEFE] p-4">
-                <div id="notes-gallery-grid" class="grid grid-cols-2 gap-3 max-h-[260px] overflow-y-auto">
-                  <div class="text-neutral-500">正在加载备忘录原生图片附件...</div>
+              <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-3">
+                <div class="space-y-2">
+                  <div class="flex gap-1.5">
+                    <input id="photo-semantic-search-input" type="text" placeholder="搜画面物体 / 图中OCR文字 / 类型（如：香蕉 / 通行密钥 / 鸡腿 / 截图）" class="w-full bg-[#E5E5E5] border border-[#1E1E1E] px-2.5 py-1.5 text-xs font-mono-ts focus:outline-none" onkeydown="if(event.key==='Enter') executePhotoSemanticSearch()" />
+                    <button onclick="executePhotoSemanticSearch()" class="bg-[#1E1E1E] text-white px-3 py-1.5 text-xs font-bold shrink-0">
+                      🔍 批量搜图
+                    </button>
+                  </div>
+                  <div class="flex flex-wrap gap-1">
+                    <button onclick="quickPhotoSearch('')" class="ts-chip-btn">全部照片</button>
+                    <button onclick="quickPhotoSearch('香蕉')" class="ts-chip-btn">🍌 香蕉/水果</button>
+                    <button onclick="quickPhotoSearch('鸡腿 美食')" class="ts-chip-btn">🍗 鸡腿/盒饭</button>
+                    <button onclick="quickPhotoSearch('通行密钥 二维码')" class="ts-chip-btn">🔐 通行密钥/二维码(OCR)</button>
+                    <button onclick="quickPhotoSearch('截图')" class="ts-chip-btn">🖥️ 屏幕截图</button>
+                  </div>
+                </div>
+                <div id="notes-gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto">
+                  <div class="text-neutral-500">正在加载图库与 AI 视觉语义索引...</div>
                 </div>
               </div>
             </div>
@@ -983,7 +1019,7 @@
     }
 
     // 2. Quickstart 3-Step Wizard Switcher
-    function switchWizardStep(stepNum) {
+    function renderWizardStep(stepNum) {
       [1, 2, 3].forEach(n => {
         document.getElementById('wiz-panel-' + n)?.classList.toggle('hidden', n !== stepNum);
         const tab = document.getElementById('wiz-tab-' + n);
@@ -994,6 +1030,142 @@
         }
       });
     }
+
+    // 2.1 Wizard gating: WeChat must succeed before iCloud, iCloud before console
+    let wizardCurrentStep = 1;
+    const renderWizardStepBase = renderWizardStep;
+    renderWizardStep = function (stepNum) {
+      renderWizardStepBase(stepNum);
+      wizardCurrentStep = stepNum;
+    };
+
+    const wizardGate = { wechatOk: false, icloudOk: false, wechatSeen: null, icloudStage: null };
+    const TONE_CLASS = { ok: 'bg-[#38B86B]/20', wait: 'bg-[#E5E5E5]', error: 'bg-red-100' };
+
+    function paintStateBox(box, tone) {
+      if (box) box.className = `p-3.5 border border-[#1E1E1E] space-y-1 ${TONE_CLASS[tone]}`;
+    }
+
+    function switchWizardStep(stepNum) {
+      if (stepNum >= 2 && !wizardGate.wechatOk) {
+        showGateWarning('wiz-wx-state-hint', '请先完成微信登录，才能进入下一步。');
+        return renderWizardStep(1);
+      }
+      if (stepNum >= 3 && !wizardGate.icloudOk) {
+        showGateWarning('wiz-ic-hint', '请先完成 iCloud 登录，才能进入下一步。');
+        return renderWizardStep(2);
+      }
+      renderWizardStep(stepNum);
+    }
+
+    function showGateWarning(hintId, text) {
+      const hint = document.getElementById(hintId);
+      if (!hint) return;
+      hint.innerText = text;
+      hint.classList.add('text-red-700', 'font-bold');
+    }
+
+    function updateWechatGate(wechat) {
+      if (!wechat) return;
+      const connected = Boolean(wechat.connected);
+      const box = document.getElementById('wiz-wx-detected-box');
+      const title = document.getElementById('wiz-wx-state-title');
+      const hint = document.getElementById('wiz-wx-state-hint');
+      const next = document.getElementById('wiz-next-1');
+      let tone = 'wait';
+      let titleText = '尚未登录微信';
+      let hintText = '请点击左侧「生成 / 刷新真实微信二维码」，用手机微信扫码并在手机上确认。';
+
+      if (connected) {
+        tone = 'ok';
+        titleText = '✓ 微信登录成功';
+        hintText = `微信身份: ${wechat.userId} | 机器人: ${wechat.accountId}`;
+      } else if (wechat.qrStatus === 'scaned') {
+        titleText = '📱 已扫码，请在手机上点击确认';
+        hintText = '手机微信上点「确认」后，本页会自动继续。';
+      } else if (wechat.qrStatus === 'expired') {
+        tone = 'error';
+        titleText = '✕ 二维码已过期';
+        hintText = '请点击「生成 / 刷新真实微信二维码」重新生成。';
+      }
+
+      paintStateBox(box, tone);
+      if (title) title.innerText = titleText;
+      if (hint) {
+        hint.innerText = hintText;
+        hint.classList.remove('text-red-700', 'font-bold');
+      }
+      if (next) next.disabled = !connected;
+
+      const justConnected = wizardGate.wechatSeen === false && connected;
+      wizardGate.wechatOk = connected;
+      wizardGate.wechatSeen = connected;
+      if (justConnected && wizardCurrentStep === 1) switchWizardStep(2);
+    }
+
+    // 2.2 iCloud login: popup browser window on the server side, progress polled here
+    const ICLOUD_STAGE_VIEW = {
+      idle: { tone: 'wait', title: '尚未登录 iCloud', busy: false },
+      browser_open: { tone: 'wait', title: '⏳ 请在弹出的浏览器窗口中登录 Apple ID', busy: true },
+      verifying: { tone: 'wait', title: '⏳ 已取得凭证，正在校验', busy: true },
+      cloning: { tone: 'wait', title: '⏳ 正在首次同步备忘录', busy: true },
+      done: { tone: 'ok', title: '✓ iCloud 登录成功', busy: false },
+      failed: { tone: 'error', title: '✕ iCloud 登录失败', busy: false }
+    };
+
+    function renderIcloudLogin(icloud) {
+      if (!icloud) return;
+      const view = ICLOUD_STAGE_VIEW[icloud.stage] || ICLOUD_STAGE_VIEW.idle;
+      const title = document.getElementById('wiz-ic-title');
+      const hint = document.getElementById('wiz-ic-hint');
+      const btn = document.getElementById('wiz-ic-btn');
+      const next = document.getElementById('wiz-next-2');
+      const failed = icloud.stage === 'failed';
+
+      paintStateBox(title?.parentElement, view.tone);
+      if (title) title.innerText = view.title;
+      if (hint) {
+        hint.innerText = failed ? `原因：${icloud.error}` : (icloud.message || hint.innerText);
+        hint.classList.toggle('text-red-700', failed);
+        hint.classList.toggle('font-bold', failed);
+      }
+      if (btn) {
+        btn.disabled = view.busy || !wizardGate.wechatOk;
+        btn.innerText = failed ? '↻ 重试登录 iCloud' : (icloud.stage === 'done' ? '🔑 重新登录 / 换号' : '🔑 登录 iCloud（弹出独立登录窗口）');
+      }
+
+      const ok = icloud.stage === 'done';
+      if (next) next.disabled = !ok;
+      const justDone = wizardGate.icloudStage !== null && wizardGate.icloudStage !== 'done' && ok;
+      wizardGate.icloudOk = ok;
+      wizardGate.icloudStage = icloud.stage;
+      if (justDone && wizardCurrentStep === 2) switchWizardStep(3);
+    }
+
+    async function pollIcloudLogin() {
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/login/status`);
+        const data = await res.json();
+        if (data.ok) renderIcloudLogin(data.icloud);
+      } catch (e) {}
+    }
+
+    async function startIcloudLogin() {
+      if (!wizardGate.wechatOk) {
+        showGateWarning('wiz-ic-hint', '请先完成微信登录。');
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/icloud/relogin`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) renderIcloudLogin(data.icloud);
+      } catch (e) {
+        showGateWarning('wiz-ic-hint', '连接本地服务失败，请确认 start-bridge.bat 仍在运行。');
+      }
+    }
+
+    setInterval(pollIcloudLogin, 2000);
+    pollIcloudLogin();
 
     // 3. Playground Console Sub-Tab Switcher
     function switchConsoleTab(tabName) {
@@ -1058,24 +1230,72 @@
         }
       }
 
+      if (data.noteImages) {
+        renderPhotoGalleryCards(data.noteImages);
+      }
+    }
+
+    function renderPhotoGalleryCards(photos) {
       const gal = document.getElementById('notes-gallery-grid');
-      if (gal && data.noteImages) {
-        if (data.noteImages.length === 0) {
-          gal.innerHTML = `<div class="text-neutral-500 col-span-2">暂无图片附件</div>`;
-        } else {
-          gal.innerHTML = data.noteImages.map(img => `
-            <div class="border border-[#1E1E1E] bg-[#E5E5E5] p-2 flex flex-col justify-between gap-2">
-              <div class="h-24 bg-[#FEFEFE] border border-[#1E1E1E]/30 flex items-center justify-center overflow-hidden">
+      if (!gal) return;
+      if (!photos || photos.length === 0) {
+        gal.innerHTML = `<div class="text-neutral-500 col-span-2 p-2">未找到匹配该关键词/类型的图片，请尝试搜索「香蕉」「鸡腿」「通行密钥」或点击「全部照片」。</div>`;
+        return;
+      }
+      gal.innerHTML = photos.map(img => {
+        const cat = img.category || '日常照片';
+        const tags = Array.isArray(img.tags) ? img.tags.slice(0, 6).join(' · ') : '';
+        const ocr = (img.ocrText || '').trim();
+        const summary = (img.summary || '').trim();
+        const reasons = img.hitReasons || img.matchReasons;
+        const reasonBadge = reasons && reasons.length
+          ? `<div class="text-[10px] bg-[#38B86B]/30 border border-[#1E1E1E] px-1.5 py-0.5 font-bold">🎯 命中: ${escapeHtml(reasons.join(' | '))}</div>`
+          : '';
+        return `
+          <div class="border border-[#1E1E1E] bg-[#E5E5E5] p-2.5 flex flex-col justify-between gap-2">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <span class="ts-tag-black text-[9px]">${escapeHtml(cat)}</span>
+                <span class="text-[9px] text-neutral-600 truncate">${escapeHtml(img.fileName)}</span>
+              </div>
+              <div class="h-28 bg-[#FEFEFE] border border-[#1E1E1E]/30 flex items-center justify-center overflow-hidden">
                 <img src="${API_BASE}/attachments/${encodeURIComponent(img.fileName)}" alt="${escapeHtml(img.fileName)}" class="max-h-full max-w-full object-contain" />
               </div>
-              <div class="text-[10px] truncate font-bold" title="${escapeHtml(img.fileName)}">${escapeHtml(img.fileName)}</div>
-              <button onclick="sendNoteImageToWechat('${escapeHtml(img.fileName)}', this)" class="w-full bg-[#1E1E1E] text-white py-1 text-[10px] font-bold">
-                📲 发原图到微信
-              </button>
+              ${reasonBadge ? `<div class="mt-1.5">${reasonBadge}</div>` : ''}
+              ${summary ? `<div class="text-[10px] font-bold mt-1 leading-snug">${escapeHtml(summary)}</div>` : ''}
+              ${tags ? `<div class="text-[10px] text-neutral-700 mt-0.5">🏷️ ${escapeHtml(tags)}</div>` : ''}
+              ${ocr ? `<div class="text-[10px] bg-[#FEFEFE] border border-[#1E1E1E]/25 px-1.5 py-1 mt-1 truncate" title="${escapeHtml(ocr)}">🔤 OCR: ${escapeHtml(ocr)}</div>` : ''}
             </div>
-          `).join('');
+            <button onclick="sendNoteImageToWechat('${escapeHtml(img.fileName)}', this)" class="w-full bg-[#1E1E1E] text-white py-1.5 text-[10px] font-bold hover:bg-black">
+              📲 发高清原图到我微信
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function quickPhotoSearch(kw) {
+      const inp = document.getElementById('photo-semantic-search-input');
+      if (inp) inp.value = kw;
+      executePhotoSemanticSearch();
+    }
+
+    async function executePhotoSemanticSearch() {
+      const inp = document.getElementById('photo-semantic-search-input');
+      const query = inp ? inp.value.trim() : '';
+      const gal = document.getElementById('notes-gallery-grid');
+      if (gal) gal.innerHTML = `<div class="text-neutral-500 col-span-2">🔍 正在检索视觉标签与 OCR 文字...</div>`;
+      try {
+        const res = await fetch(`${API_BASE}/api/photos/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        if (data.ok && data.hits) {
+          renderPhotoGalleryCards(data.hits);
         }
-      }
+      } catch (e) {}
     }
 
     async function sendDriveFileToWechat(docwsid, fileName, btn) {
@@ -1186,6 +1406,7 @@
 
     function applyStatusToUI(data) {
       if (!data) return;
+      updateWechatGate(data.wechat);
       const shortUser = (data.wechat.userId || "").slice(0, 14) + "...";
       const summary = `WX_SESSION: ${shortUser} · BOT: ${data.wechat.accountId} · ICLOUD.CN: ${data.icloud.noteCount} NOTES · MODE: ${data.wechat.mode}`;
       const topSum = document.getElementById('console-top-summary');
@@ -1198,9 +1419,9 @@
 
       // Wizard status
       const wizBadge = document.getElementById('wiz-wx-badge');
-      if (wizBadge) wizBadge.innerText = data.wechat.connected ? "● IDENTITY VERIFIED" : "WAIT SCAN";
+      if (wizBadge) wizBadge.innerText = (data.wechat.connected || data.wechat.qrStatus === 'confirmed') ? "● IDENTITY VERIFIED" : (data.wechat.qrStatus === 'scaned' ? "📱 SCANNED · 请在手机确认" : "WAIT SCAN");
       const wizAcc = document.getElementById('wiz-wx-account-text');
-      if (wizAcc) wizAcc.innerText = `微信身份: ${data.wechat.userId} | 机器人: ${data.wechat.accountId}`;
+      if (wizAcc && data.wechat.connected) wizAcc.innerText = `微信身份: ${data.wechat.userId} | 机器人: ${data.wechat.accountId}`;
       const wizNote = document.getElementById('wiz-note-count');
       if (wizNote) wizNote.innerText = `${data.icloud.noteCount} 篇 (.md)`;
       const wizAtt = document.getElementById('wiz-att-count');
@@ -1216,13 +1437,20 @@
       const bkSync = document.getElementById('bk-sync-time');
       if (bkSync) bkSync.innerText = data.icloud.lastSyncTime || "--:--:--";
 
-      // Mode buttons
+      // Mode buttons (Console + Global Top Nav)
       ['DUAL_AUTO', 'AGENT_FIRST', 'NOTES_FIRST'].forEach(m => {
         const btn = document.getElementById('mode-btn-' + m);
-        if (!btn) return;
-        btn.className = (m === data.wechat.mode)
-          ? "px-2.5 py-1 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold"
-          : "px-2.5 py-1 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E] hover:bg-[#D4D4D4]";
+        if (btn) {
+          btn.className = (m === data.wechat.mode)
+            ? "px-3 py-1.5 border border-[#1E1E1E] bg-[#1E1E1E] text-white font-bold"
+            : "px-3 py-1.5 border border-[#1E1E1E] bg-[#E5E5E5] text-[#1E1E1E] hover:bg-[#D4D4D4]";
+        }
+        const navBtn = document.getElementById('nav-mode-' + m);
+        if (navBtn) {
+          navBtn.className = (m === data.wechat.mode)
+            ? "px-2.5 py-2 bg-[#1E1E1E] text-white font-bold"
+            : "px-2.5 py-2 bg-[#FEFEFE] text-[#1E1E1E] hover:bg-[#E5E5E5]";
+        }
       });
 
       const rules = data.rules || [];
