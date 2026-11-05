@@ -1,0 +1,114 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { CorruptSessionFileError, MissingSessionFileError } from "./errors.js";
+/**
+ * Every session file lives under a specific Apple ID's own directory (see
+ * `accountStore.ts`'s `accountSessionPath`), not at one shared path - a
+ * machine can hold sessions for more than one account, each folder bound to
+ * whichever one it was cloned for.
+ */
+export async function loadSession(sessionPath) {
+    let raw;
+    try {
+        raw = await readFile(sessionPath, "utf8");
+    }
+    catch (cause) {
+        throw new MissingSessionFileError(sessionPath, { cause });
+    }
+    const parsed = JSON.parse(raw);
+    return assertIcloudSession(parsed, sessionPath);
+}
+/** Writes a session file with the same permissions convention import-har/login both rely on. */
+export async function writeSessionFile(session, sessionPath) {
+    await mkdir(path.dirname(sessionPath), { recursive: true, mode: 0o700 });
+    await writeFile(sessionPath, JSON.stringify(session, null, 2) + "\n", { mode: 0o600 });
+}
+/** Parses a `Name1=Value1; Name2=Value2` cookie header into a name→value map, preserving order. */
+export function parseCookieHeader(cookieHeader) {
+    const cookies = new Map();
+    if (cookieHeader === "") {
+        return cookies;
+    }
+    for (const part of cookieHeader.split(";")) {
+        const trimmed = part.trim();
+        if (trimmed === "") {
+            continue;
+        }
+        const eq = trimmed.indexOf("=");
+        if (eq === -1) {
+            continue;
+        }
+        cookies.set(trimmed.slice(0, eq), trimmed.slice(eq + 1));
+    }
+    return cookies;
+}
+/** Extracts just the `Name=Value` pair from one `Set-Cookie` response header, ignoring its attributes. */
+export function parseSetCookieName(setCookieHeader) {
+    const firstSegment = setCookieHeader.split(";")[0]?.trim();
+    if (!firstSegment) {
+        return undefined;
+    }
+    const eq = firstSegment.indexOf("=");
+    if (eq === -1) {
+        return undefined;
+    }
+    return { name: firstSegment.slice(0, eq), value: firstSegment.slice(eq + 1) };
+}
+/**
+ * Merges rotated cookies from a response's `Set-Cookie` headers into a session's
+ * cookie jar. Every `/validate` call rotates `X-APPLE-WEBAUTH-TOKEN` the same way
+ * the browser's own 14-minute heartbeat does (see the dev notes); previously we
+ * discarded that rotation and kept re-presenting the superseded token. Existing
+ * cookie order is preserved (a rotated value updates in place); brand-new cookie
+ * names are appended. Returns the same `session` object, unchanged, if nothing
+ * actually rotated.
+ */
+export function mergeSetCookiesIntoSession(session, setCookieHeaders) {
+    if (setCookieHeaders.length === 0) {
+        return session;
+    }
+    const cookies = parseCookieHeader(session.cookie);
+    let changed = false;
+    for (const header of setCookieHeaders) {
+        const parsed = parseSetCookieName(header);
+        if (!parsed) {
+            continue;
+        }
+        if (cookies.get(parsed.name) !== parsed.value) {
+            changed = true;
+        }
+        cookies.set(parsed.name, parsed.value);
+    }
+    if (!changed) {
+        return session;
+    }
+    const cookie = [...cookies.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
+    return { ...session, cookie };
+}
+/** Writes `next` to disk only if its cookie jar actually differs from `previous` - avoids a pointless write on every call. */
+export async function persistSessionIfRotated(previous, next, sessionPath) {
+    if (next.cookie === previous.cookie) {
+        return;
+    }
+    await writeSessionFile(next, sessionPath);
+}
+function assertIcloudSession(value, sessionPath) {
+    const requiredStringFields = ["cookie", "clientId", "clientBuildNumber", "clientMasteringNumber", "capturedAt"];
+    if (typeof value !== "object" || value === null) {
+        throw new CorruptSessionFileError(`Session file at ${sessionPath} does not contain a JSON object.`);
+    }
+    const record = value;
+    for (const field of requiredStringFields) {
+        if (typeof record[field] !== "string" || record[field] === "") {
+            throw new CorruptSessionFileError(`Session file at ${sessionPath} is missing a non-empty "${field}" field.`);
+        }
+    }
+    return {
+        cookie: record.cookie,
+        clientId: record.clientId,
+        clientBuildNumber: record.clientBuildNumber,
+        clientMasteringNumber: record.clientMasteringNumber,
+        capturedAt: record.capturedAt,
+    };
+}
+//# sourceMappingURL=session.js.map

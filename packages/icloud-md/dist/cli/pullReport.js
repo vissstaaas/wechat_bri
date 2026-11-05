@@ -1,0 +1,84 @@
+import { CHANGED, GONE, LISTING_INDENT, MOVED, NEEDS_ATTENTION, NEW, QUIET, UNSYNCABLE, labelledLine, remarkLine, } from "./reportStyle.js";
+/** Same vocabulary as the push plan's labels where the kinds overlap, so the
+ * two screens read as one family; "merged:" and "untracked:" are pull-only
+ * outcomes. A merge changed the file in place (yellow, like "modified:");
+ * an untrack ends the sync relationship, which is a kind of going-away even
+ * though the file itself stays (red, like "deleted:"). */
+const LABELS = {
+    add: ["new file:", NEW],
+    update: ["modified:", CHANGED],
+    merge: ["merged:", CHANGED],
+    remove: ["deleted:", GONE],
+    move: ["moved:", MOVED],
+    untrack: ["untracked:", GONE],
+};
+const LABEL_WIDTH = Math.max(...Object.values(LABELS).map(([label]) => label.length));
+/** How each remark tone reads: the two that want the reader to do something
+ * keep the "!" they always had; a "note" is dim and unmarked, because
+ * decorating an explanation as an alarm is how a changelist becomes noise. */
+const REMARK_STYLES = {
+    conflict: [NEEDS_ATTENTION, "!"],
+    unsyncable: [UNSYNCABLE, "!"],
+    note: [QUIET, " "],
+};
+/**
+ * Renders a pull's outcome the way `status` renders the push plan: a heading,
+ * a blank line, the indented changelist (one coloured label per file, with
+ * conflict/read-only remarks indented beneath the entries they belong to), a
+ * blank line, and a tally. `formatPath` is the same presentation hook
+ * `renderPlan` takes - the CLI passes a cwd-relativizer so paths read from
+ * where the user is standing.
+ */
+export function renderPullReport(summary, formatPath = (file) => file) {
+    if (summary.changes.length === 0) {
+        return [QUIET("Already up to date.")];
+    }
+    const lines = ["Changes pulled from iCloud:", ""];
+    for (const change of summary.changes) {
+        const [label, color] = LABELS[change.kind];
+        // Any change can carry a previous path, not just a folder move: a
+        // remote retitle renames the file *and* usually rewrites it, and one
+        // "modified: Old.md -> New.md" line says that better than a separate
+        // move entry saying half of it.
+        const subject = change.previousFile !== undefined && change.previousFile !== change.file
+            ? `${formatPath(change.previousFile)} -> ${formatPath(change.file)}`
+            : formatPath(change.file);
+        lines.push(LISTING_INDENT + labelledLine(label, color, LABEL_WIDTH, subject));
+        for (const remark of change.remarks ?? []) {
+            const [tone, mark] = REMARK_STYLES[remark.tone];
+            lines.push(LISTING_INDENT + remarkLine(tone, LABEL_WIDTH, `${mark} ${remark.message}`));
+        }
+    }
+    lines.push("", tallyLine(summary));
+    return lines;
+}
+/** The trailing tally, shaped like `renderPlan`'s: the always-shown counts
+ * first, the situational ones only when nonzero, and the needs-attention
+ * counts set apart in a parenthetical. */
+function tallyLine(summary) {
+    const moved = summary.changes.filter((change) => change.kind === "move").length;
+    const untracked = summary.changes.filter((change) => change.kind === "untrack").length;
+    let tally = `${summary.added} added, ${summary.updated} updated, ${summary.merged} auto-merged, ${summary.removed} deleted`;
+    if (moved > 0) {
+        tally += `, ${moved} moved`;
+    }
+    if (untracked > 0) {
+        tally += `, ${untracked} untracked`;
+    }
+    if (summary.attachmentsDownloaded > 0) {
+        tally += `, ${summary.attachmentsDownloaded} attachment(s) downloaded`;
+    }
+    tally += ".";
+    const attention = [];
+    if (summary.conflicts.length > 0) {
+        attention.push(`${summary.conflicts.length} conflict(s)`);
+    }
+    if (summary.unpublishable > 0) {
+        attention.push(`${summary.unpublishable} read-only`);
+    }
+    if (attention.length > 0) {
+        tally += ` (${attention.join(", ")})`;
+    }
+    return tally;
+}
+//# sourceMappingURL=pullReport.js.map

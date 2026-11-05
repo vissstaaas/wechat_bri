@@ -1,0 +1,321 @@
+import { mkdir } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { chromium } from "playwright";
+import { DEFAULT_CLIENT_BUILD_NUMBER, DEFAULT_CLIENT_MASTERING_NUMBER } from "./clientConstants.js";
+import { CONFIG_DIR } from "../configDir.js";
+import { ChromiumNotInstalledError, SignInIncompleteError } from "../errors.js";
+/**
+ * Browser-driven login: open a real (headed) browser window on www.icloud.com,
+ * let the user - and Apple's own JavaScript - do the entire sign-in dance
+ * (password, whatever 2FA variant the account uses, CAPTCHAs, interstitials),
+ * then harvest the resulting session cookies once the page's own
+ * setup.icloud.com bootstrap call succeeds.
+ *
+ * This deliberately owns none of the idmsa.apple.com protocol surface: Apple's
+ * pages execute whatever this month's login flow is, and all we depend on is
+ * the shape of the *result* (a cookie jar for .icloud.com plus the client
+ * query params), which is the same thing the HAR-import path already proved
+ * sufficient.
+ */
+/**
+ * The login browser's own persistent state (cookies, local storage, and the
+ * device trust Apple grants after a completed 2FA). Reusing one profile means
+ * repeat logins look like a returning browser and typically skip 2FA entirely.
+ */
+export const DEFAULT_BROWSER_PROFILE_DIR = path.join(CONFIG_DIR, "browser-profile");
+const ICLOUD_HOME = "https://www.icloud.com.cn/";
+/**
+ * The web client calls /validate on page load (200 only with a live session)
+ * and /accountLogin as the final step of an interactive sign-in. A 2xx on
+ * either is *necessary* but not *sufficient* for success: a password-based
+ * sign-in fires an accountLogin that returns 200 with
+ * `hsaChallengeRequired: true` *before* the 2FA step (observed in the HAR:
+ * two accountLogins 17s apart, the first partial, the second - post-2FA -
+ * full). The response body must be checked too, or the window slams shut in
+ * the user's face right as the 2FA screen appears.
+ */
+const SETUP_SUCCESS_PATTERN = /^https:\/\/setup\.icloud\.com(\.cn)?\/setup\/ws\/1\/(accountLogin|validate)(\?|$)/;
+/**
+ * True only for a *fully* signed-in accountLogin/validate response body: the
+ * account info is present and no 2FA challenge is still pending. The partial
+ * (pre-2FA) response otherwise looks deceptively complete - it even includes
+ * the `webservices.ckdatabasews` entry - so `hsaChallengeRequired` is the
+ * discriminator, not any of the fields we actually consume.
+ */
+export function isFullySignedInBody(body) {
+    if (!isPlainRecord(body) || !isPlainRecord(body.dsInfo)) {
+        return false;
+    }
+    return body.hsaChallengeRequired !== true && body.dsInfo.hsaChallengeRequired !== true;
+}
+function isPlainRecord(value) {
+    return typeof value === "object" && value !== null;
+}
+/**
+ * Resolves with the first setup accountLogin/validate response whose body
+ * shows a *completed* sign-in (see isFullySignedInBody). Replaces a plain
+ * `context.waitForEvent("response", ...)` because the predicate there can't
+ * asynchronously read response bodies. Rejects on context close (user closed
+ * the window) or after `timeoutMs` (0 = wait forever); the rejection carries
+ * a `name` of "TimeoutError" in the latter case so callers can tell the two
+ * apart.
+ */
+function waitForFullSignIn(context, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (action) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            if (timer !== undefined) {
+                clearTimeout(timer);
+            }
+            context.off("response", onResponse);
+            context.off("close", onClose);
+            action();
+        };
+        const onResponse = (response) => {
+            if (!SETUP_SUCCESS_PATTERN.test(response.url()) || !response.ok()) {
+                return;
+            }
+            void response
+                .json()
+                .catch(() => null)
+                .then((body) => {
+                if (isFullySignedInBody(body)) {
+                    finish(() => resolve(response));
+                }
+            });
+        };
+        const onClose = () => {
+            finish(() => reject(new Error("Browser context closed before sign-in completed.")));
+        };
+        const timer = timeoutMs > 0
+            ? setTimeout(() => {
+                const error = new Error(`No completed sign-in within ${timeoutMs}ms.`);
+                error.name = "TimeoutError";
+                finish(() => reject(error));
+            }, timeoutMs)
+            : undefined;
+        context.on("response", onResponse);
+        context.on("close", onClose);
+    });
+}
+/** True for icloud.com and any subdomain, with or without a leading dot. */
+export function isIcloudDomain(domain) {
+    const host = domain.replace(/^\./, "");
+    return host === "icloud.com" || host.endsWith(".icloud.com") || host === "icloud.com.cn" || host.endsWith(".icloud.com.cn") || host.endsWith(".apple.com");
+}
+/**
+ * Builds the verbatim Cookie header the rest of the client sends to
+ * setup.icloud.com/ckdatabasews. Mirrors the HAR-import approach: forward the
+ * whole icloud.com jar rather than guessing which cookies matter (see the
+ * open question in the dev notes about which ones are actually required).
+ */
+export function buildIcloudCookieHeader(cookies) {
+    return cookies
+        .filter((cookie) => isIcloudDomain(cookie.domain))
+        .map((cookie) => `${cookie.name}=${cookie.value}`)
+        .join("; ");
+}
+/** Pulls the web client's identifying query params off a setup.icloud.com request URL. */
+export function extractClientParams(url) {
+    const params = new URL(url).searchParams;
+    return {
+        clientId: params.get("clientId") ?? undefined,
+        clientBuildNumber: params.get("clientBuildNumber") ?? undefined,
+        clientMasteringNumber: params.get("clientMasteringNumber") ?? undefined,
+    };
+}
+/**
+ * Assembles an IcloudSession from a captured cookie jar and the setup call's
+ * URL. Client params come from the observed request itself (so they track
+ * whatever web-client build actually just logged in) with the static defaults
+ * as fallback. Device trust lives in the persistent browser profile, not the
+ * session file.
+ */
+export function sessionFromBrowserCapture(cookies, setupRequestUrl, capturedAt = new Date()) {
+    const cookie = buildIcloudCookieHeader(cookies);
+    if (cookie === "") {
+        throw new SignInIncompleteError("The browser session contained no icloud.com cookies to capture - sign-in did not complete.");
+    }
+    const params = extractClientParams(setupRequestUrl);
+    const setupHost = new URL(setupRequestUrl).origin;
+    return {
+        cookie,
+        clientId: params.clientId ?? crypto.randomUUID(),
+        clientBuildNumber: params.clientBuildNumber ?? DEFAULT_CLIENT_BUILD_NUMBER,
+        clientMasteringNumber: params.clientMasteringNumber ?? DEFAULT_CLIENT_MASTERING_NUMBER,
+        setupHost,
+        capturedAt: capturedAt.toISOString(),
+    };
+}
+/**
+ * Best-effort: tick Apple's "Keep me signed in" checkbox whenever it appears
+ * in the sign-in iframe, so the completed login is an extended session
+ * (`extended_login: true`). Without it, the browser profile's own session
+ * expires on the same short clock as our captured cookies - and then a
+ * headless relaunch of the profile just lands on the logged-out landing
+ * page with a password prompt, which is exactly what makes silent 421
+ * recovery impossible (probed live, 2026-07-13 dev notes). Polling loop
+ * rather than a one-shot wait because the checkbox only exists after the
+ * user advances past the account-name step, and may be re-rendered.
+ */
+function keepMeSignedInWatcher(page, isDone, status) {
+    const POLL_INTERVAL_MS = 1_000;
+    let announced = false;
+    return (async () => {
+        while (!isDone() && !page.isClosed()) {
+            for (const frame of page.frames()) {
+                if (!frame.url().includes("idmsa.apple.com")) {
+                    continue;
+                }
+                try {
+                    const checkbox = frame.getByLabel(/keep me signed in/i).first();
+                    if ((await checkbox.count()) > 0 && !(await checkbox.isChecked())) {
+                        await checkbox.check({ timeout: 2_000 });
+                        if (!announced) {
+                            announced = true;
+                            status('Ticked "Keep me signed in" so the session survives long idle periods.');
+                        }
+                    }
+                }
+                catch {
+                    // The frame navigated away mid-poll, or the checkbox isn't
+                    // interactable right now - never let this kill the login.
+                }
+            }
+            await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+    })();
+}
+/** Playwright's own message when a browser's binary hasn't been downloaded yet (matched the same way Playwright's CLI itself detects this failure). */
+export function isMissingChromiumError(error) {
+    return error instanceof Error && error.message.includes("Executable doesn't exist");
+}
+/**
+ * Absolute path to the bundled Playwright package's own CLI entrypoint
+ * (`cli.js`, the target of its "bin" field). It isn't in playwright's exports
+ * map, so it can't be resolved by specifier - but `playwright/package.json`
+ * is exported, and `cli.js` sits beside it.
+ */
+export function resolvePlaywrightCli() {
+    const require = createRequire(import.meta.url);
+    return path.join(path.dirname(require.resolve("playwright/package.json")), "cli.js");
+}
+/**
+ * Runs the bundled Playwright CLI's `install chromium` as a child process,
+ * streaming its progress output straight through. Deliberately not
+ * `npx playwright`: with a globally-installed icloud-md, npx (run from the
+ * user's cwd) can't see the bundled playwright package at all, so it stops at
+ * an interactive "Ok to proceed? (y)" download prompt - invisible under the
+ * sync spinner, which looked like a silent hang (observed 2026-07-18). It
+ * would also fetch playwright@latest, whose browser build can drift from the
+ * pinned library version. Spawning our own copy has neither problem.
+ */
+function installChromium() {
+    return new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, [resolvePlaywrightCli(), "install", "chromium"], { stdio: "inherit" });
+        child.on("error", reject);
+        child.on("exit", (code) => {
+            if (code === 0) {
+                resolve();
+            }
+            else {
+                reject(new Error(`"playwright install chromium" exited with code ${code}`));
+            }
+        });
+    });
+}
+/**
+ * Launches the persistent login browser, transparently downloading Chromium
+ * on first use rather than requiring a separate manual install step. Only the
+ * specific "browser executable doesn't exist" failure triggers an install
+ * attempt; any other launch failure (or a failure of the install itself)
+ * falls back to `ChromiumNotInstalledError`, which still points the user at
+ * running the command by hand.
+ */
+async function launchWithLazyChromiumInstall(profileDir, headless, status) {
+    try {
+        return await chromium.launchPersistentContext(profileDir, { headless, viewport: null });
+    }
+    catch (cause) {
+        if (!isMissingChromiumError(cause)) {
+            throw new ChromiumNotInstalledError({ cause });
+        }
+    }
+    status("First-time setup: downloading the sign-in browser (~150MB, one-time)...");
+    try {
+        await installChromium();
+    }
+    catch (cause) {
+        throw new ChromiumNotInstalledError({ cause });
+    }
+    try {
+        return await chromium.launchPersistentContext(profileDir, { headless, viewport: null });
+    }
+    catch (cause) {
+        throw new ChromiumNotInstalledError({ cause });
+    }
+}
+/**
+ * Opens the login window and resolves with a captured session once sign-in
+ * completes. Rejects if the user closes the window first (interactive mode)
+ * or if `timeoutMs` elapses (headless mode). The window is always closed
+ * afterwards - the browser never lingers, so its own 14-minute /validate
+ * heartbeat can't race the captured token the way a live tab raced
+ * HAR-imported sessions.
+ */
+export async function performBrowserLogin(options = {}) {
+    const profileDir = options.profileDir ?? DEFAULT_BROWSER_PROFILE_DIR;
+    const status = options.onStatus ?? ((message) => console.log(message));
+    const headless = options.headless ?? false;
+    const timeoutMs = options.timeoutMs ?? 0;
+    await mkdir(profileDir, { recursive: true, mode: 0o700 });
+    const context = await launchWithLazyChromiumInstall(profileDir, headless, status);
+    try {
+        const page = context.pages()[0] ?? (await context.newPage());
+        // Start listening before navigating: if the persistent profile is still
+        // logged in, the success signal is the page-load /validate itself.
+        const successPromise = waitForFullSignIn(context, timeoutMs);
+        await page.goto(ICLOUD_HOME);
+        if (!headless) {
+            status("Complete the sign-in in the browser window (password + any 2FA prompt).");
+            status("Waiting for sign-in to finish... (close the window to abort)");
+        }
+        // Runs alongside the wait below; stops on its own once sign-in completes
+        // (or the window closes). Interactive logins only - a headless recovery
+        // relaunch either auto-validates from the profile's session or fails, no
+        // sign-in form is ever completed there.
+        let signInDone = false;
+        const watcher = headless
+            ? Promise.resolve()
+            : keepMeSignedInWatcher(page, () => signInDone, status).catch(() => undefined);
+        let response;
+        try {
+            response = await successPromise;
+        }
+        catch (cause) {
+            const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+            throw new SignInIncompleteError(timedOut
+                ? `Timed out after ${timeoutMs}ms waiting for sign-in to complete.`
+                : "The browser window was closed before sign-in completed.", { cause });
+        }
+        // The success response's own Set-Cookie headers mint the freshest tokens;
+        // wait for the response to fully land, then give the browser a moment to
+        // commit them to the jar before snapshotting it.
+        await response.finished();
+        signInDone = true;
+        await watcher;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const cookies = await context.cookies();
+        return sessionFromBrowserCapture(cookies, response.url());
+    }
+    finally {
+        await context.close().catch(() => undefined);
+    }
+}
+//# sourceMappingURL=browserLogin.js.map

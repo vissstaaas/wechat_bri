@@ -1,0 +1,105 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { accountSessionPath, writeAccountMeta } from "../auth/accountStore.js";
+import { checkAuthentication } from "../cloudkit/setupClient.js";
+import { writeSessionFile } from "../session.js";
+/**
+ * Pulls a session out of a HAR capture by using the Cookie header from the LAST
+ * request in the file that has one for an icloud.com host, taken verbatim (not
+ * merged with any other request). A HAR capture can span more than one login
+ * session (e.g. a page reload re-authenticates and rotates tokens); blending
+ * cookie values across requests risks combining an old token from one session
+ * with a newer one from another, which the server will reject outright. A single
+ * real request's Cookie header, taken as-is, is guaranteed to be a coherent
+ * snapshot the browser actually sent.
+ *
+ * Chrome strips cookies from HAR exports by default; the source HAR must be
+ * exported with DevTools' "Allow to generate HAR with sensitive data" enabled.
+ */
+async function main() {
+    const harPathArg = process.argv[2];
+    if (!harPathArg) {
+        console.error("Usage: npm run import-har -- <path-to-file.har>");
+        process.exitCode = 1;
+        return;
+    }
+    const harPath = path.resolve(harPathArg);
+    const raw = await readFile(harPath, "utf8");
+    const parsed = JSON.parse(raw);
+    const har = asHarFile(parsed, harPath);
+    let cookie;
+    let clientId;
+    let clientBuildNumber;
+    let clientMasteringNumber;
+    for (const entry of har.log.entries) {
+        let url;
+        try {
+            url = new URL(entry.request.url);
+        }
+        catch {
+            continue;
+        }
+        if (!url.hostname.endsWith("icloud.com")) {
+            continue;
+        }
+        const cookieHeader = entry.request.headers.find((header) => header.name.toLowerCase() === "cookie");
+        if (!cookieHeader || cookieHeader.value.length === 0) {
+            continue;
+        }
+        // Last one wins: walk the whole file, keep overwriting with each newer match.
+        cookie = cookieHeader.value;
+        clientId = url.searchParams.get("clientId") ?? clientId;
+        clientBuildNumber = url.searchParams.get("clientBuildNumber") ?? clientBuildNumber;
+        clientMasteringNumber = url.searchParams.get("clientMasteringNumber") ?? clientMasteringNumber;
+    }
+    if (!cookie) {
+        console.error("No cookies found for *.icloud.com in that HAR file.\n" +
+            'If this was exported from Chrome DevTools, re-export with "Allow to generate HAR with sensitive data" ' +
+            "enabled (gear icon in the Network panel) - cookies are stripped from HAR exports by default.");
+        process.exitCode = 1;
+        return;
+    }
+    if (!clientId || !clientBuildNumber || !clientMasteringNumber) {
+        console.error("Found cookies, but couldn't find clientId/clientBuildNumber/clientMasteringNumber on the same request URL in that HAR file.");
+        process.exitCode = 1;
+        return;
+    }
+    const candidateSession = {
+        cookie,
+        clientId,
+        clientBuildNumber,
+        clientMasteringNumber,
+        capturedAt: new Date().toISOString(),
+    };
+    // Unlike a browser-driven login, a HAR capture is never actually verified
+    // against the server - this call is that verification, and it's also how
+    // we discover which account (dsid) this HAR belongs to, so it lands in
+    // that account's own subdirectory rather than some undefined default.
+    const result = await checkAuthentication(candidateSession);
+    if (!result.ok) {
+        console.error(`Captured cookies from the HAR, but they failed verification (HTTP ${result.status}): ${result.error}`);
+        process.exitCode = 1;
+        return;
+    }
+    const sessionPath = accountSessionPath(result.dsid);
+    await writeSessionFile(result.session, sessionPath);
+    await writeAccountMeta({ appleId: result.appleId, dsid: result.dsid });
+    const cookieCount = cookie.split(";").filter((pair) => pair.trim().length > 0).length;
+    console.log(`Wrote ${cookieCount} cookies for ${result.appleId} to ${sessionPath}`);
+}
+function asHarFile(value, harPath) {
+    if (typeof value !== "object" ||
+        value === null ||
+        !("log" in value) ||
+        typeof value.log !== "object" ||
+        value.log === null) {
+        throw new Error(`${harPath} does not look like a HAR file (missing top-level "log" object).`);
+    }
+    const log = value.log;
+    if (!Array.isArray(log.entries)) {
+        throw new Error(`${harPath} does not look like a HAR file (missing "log.entries" array).`);
+    }
+    return value;
+}
+await main();
+//# sourceMappingURL=importHar.js.map

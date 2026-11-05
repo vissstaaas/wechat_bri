@@ -1,0 +1,68 @@
+import { NotClonedDirectoryError } from "../errors.js";
+import { openVault } from "../notes/vaultMigrations.js";
+import { listEpochs } from "../notes/noteEpoch.js";
+import { historyRecordNames, resolveTrackedNote } from "../notes/trackedFile.js";
+import { listVersions } from "../notes/versionHistory.js";
+/**
+ * Lists a tracked note's recorded history, newest first. By default this is
+ * the epoch timeline (one line per coordinated pull/push capture - see the
+ * "Whole-note coordinated version epochs" investigation); `--records` (via
+ * `options.records`) restores the previous per-record flat listing.
+ */
+export async function runHistory(targetDir, fileArg, options = {}) {
+    const state = await openVault(targetDir);
+    if (!state) {
+        throw new NotClonedDirectoryError(targetDir);
+    }
+    const { recordName } = resolveTrackedNote(state, fileArg, targetDir);
+    if (options.records) {
+        return { mode: "records", records: await buildRecordHistory(targetDir, historyRecordNames(state, recordName), recordName) };
+    }
+    const epochs = await listEpochs(targetDir, recordName);
+    // oldest-first from listEpochs; walking forward lets each epoch compare
+    // against the one immediately before it to say what changed vs. carried
+    // over, then the finished rows return newest-first to match the default.
+    const rows = [];
+    let previous;
+    for (const epoch of epochs) {
+        rows.push(describeEpoch(epoch, previous, recordName));
+        previous = epoch;
+    }
+    return { mode: "epochs", epochs: rows.reverse() };
+}
+function describeEpoch(epoch, previous, noteRecordName) {
+    const changed = [];
+    const carried = [];
+    for (const [recordName, snapshotId] of Object.entries(epoch.snapshots)) {
+        const label = recordName === noteRecordName ? "note" : `table ${recordName}`;
+        const previousSnapshotId = previous?.snapshots[recordName];
+        if (previous && previousSnapshotId === snapshotId) {
+            carried.push(label);
+        }
+        else {
+            changed.push(label);
+        }
+    }
+    return { id: epoch.id, timestamp: epoch.timestamp, changed, carriedOver: carried };
+}
+async function buildRecordHistory(targetDir, recordNames, noteRecordName) {
+    const rows = [];
+    for (const rn of recordNames) {
+        const label = rn === noteRecordName ? "note" : `table ${rn}`;
+        // listVersions returns oldest-first; reversed here so that below,
+        // Array.sort's stability preserves each record's own newest-first order
+        // even when two of its snapshots tie on timestamp (millisecond
+        // resolution - plausible for back-to-back captures in one pull/push).
+        for (const snapshot of [...(await listVersions(targetDir, rn))].reverse()) {
+            rows.push({ snapshot, label });
+        }
+    }
+    rows.sort((a, b) => b.snapshot.timestamp.localeCompare(a.snapshot.timestamp));
+    return rows.map(({ snapshot, label }) => ({
+        id: snapshot.id,
+        timestamp: snapshot.timestamp,
+        label,
+        recordChangeTag: snapshot.recordChangeTag,
+    }));
+}
+//# sourceMappingURL=history.js.map

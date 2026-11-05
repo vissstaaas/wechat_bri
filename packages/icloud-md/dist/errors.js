@@ -1,0 +1,308 @@
+/**
+ * Base for known, "expected" failure modes - a library consumer can catch
+ * this broadly to distinguish them from genuine bugs, while the CLI prints
+ * `message` (and `hint`, if present) without a stack trace. Anything not an
+ * instance of this stays a plain `Error` and keeps its raw stack trace, since
+ * that means something actually went wrong that needs debugging.
+ */
+export class IcloudNotesSyncError extends Error {
+    hint;
+    constructor(message, options = {}) {
+        super(message, options);
+        this.name = new.target.name;
+        if (options.hint !== undefined) {
+            this.hint = options.hint;
+        }
+    }
+}
+export class AuthenticationExpiredError extends IcloudNotesSyncError {
+    constructor(status, detail) {
+        super(`Not authenticated (HTTP ${status}): ${detail}`, {
+            hint: 'Run "icloud-md reauthenticate" to sign in again.',
+        });
+    }
+}
+/**
+ * Covers both the headless-recovery attempt throwing outright, and the case
+ * where recovery "succeeded" but the resulting session still fails
+ * verification - either way, the persistent browser profile can't get back
+ * in on its own and a human needs to complete an interactive sign-in.
+ */
+export class SilentReauthFailedError extends IcloudNotesSyncError {
+    constructor(message, options = {}) {
+        super(message, {
+            ...options,
+            hint: 'Run "icloud-md reauthenticate" to sign in interactively.',
+        });
+    }
+}
+export class UntrackedFileError extends IcloudNotesSyncError {
+    constructor(fileName, targetDir, options = {}) {
+        super(`"${fileName}" isn't a tracked note in ${targetDir}.`, {
+            hint: options.hint ?? "Check the file name (it's case-sensitive) and try again.",
+        });
+    }
+}
+export class NotClonedDirectoryError extends IcloudNotesSyncError {
+    constructor(targetDir) {
+        super(`${targetDir} doesn't look like a cloned notes directory (no .icloud-md/state.json).`, {
+            hint: 'Run "icloud-md clone <directory>" first.',
+        });
+    }
+}
+export class AmbiguousTrackedFileError extends IcloudNotesSyncError {
+    constructor(baseName, candidates) {
+        super(`"${baseName}" matches more than one tracked note: ${candidates.join(", ")}.`, {
+            hint: "Qualify it with its folder (or run the command from inside that folder).",
+        });
+    }
+}
+export class UnsupportedVaultLayoutError extends IcloudNotesSyncError {
+    constructor(targetDir) {
+        super(`${targetDir} was cloned before folder support and uses the old flat layout, which this version no longer reads.`, {
+            hint: 'Re-clone into a fresh directory: "icloud-md clone <new-directory>". (This tool made no changes.)',
+        });
+    }
+}
+/**
+ * The vault was written by a newer icloud-md than this one. Vaults migrate
+ * forward automatically, so running an older build against one it has already
+ * touched is a real possibility - and the only safe answer is to upgrade.
+ * Deliberately distinct from `UnsupportedVaultLayoutError`, whose "re-clone
+ * into a fresh directory" advice would be destructive here.
+ */
+export class VaultFromNewerToolError extends IcloudNotesSyncError {
+    constructor(targetDir, vaultVersion, supportedVersion) {
+        super(`${targetDir} was written by a newer version of icloud-md (vault layout ${vaultVersion}; this build understands ${supportedVersion}).`, {
+            hint: 'Upgrade to the latest release: "npm install -g icloud-md@latest". (This tool made no changes.)',
+        });
+    }
+}
+export class MissingSessionFileError extends IcloudNotesSyncError {
+    constructor(sessionPath, options = {}) {
+        super(`No session file found at ${sessionPath}.`, {
+            ...options,
+            hint: 'Run "icloud-md reauthenticate" (or "npm run import-har -- <path-to.har>" from a browser HAR export) to create one.',
+        });
+    }
+}
+/** The session file exists but isn't (or is no longer) a valid `IcloudSession` - hand-edited, truncated, or from an incompatible version. */
+export class CorruptSessionFileError extends IcloudNotesSyncError {
+    constructor(message) {
+        super(message, { hint: 'Run "icloud-md reauthenticate" to regenerate it.' });
+    }
+}
+export class ChromiumNotInstalledError extends IcloudNotesSyncError {
+    constructor(options = {}) {
+        super("Could not launch the login browser.", {
+            ...options,
+            hint: 'Playwright\'s Chromium may not be installed yet - run "npx playwright install chromium" and retry.',
+        });
+    }
+}
+/** Covers every way an interactive/headless browser login can end without a usable session: no cookies captured, the wait timed out, or the window was closed early. */
+export class SignInIncompleteError extends IcloudNotesSyncError {
+    constructor(message, options = {}) {
+        super(message, {
+            ...options,
+            hint: "Try again and complete the sign-in (including any 2FA prompt) without closing the browser window.",
+        });
+    }
+}
+export class NotesUnavailableError extends IcloudNotesSyncError {
+    constructor() {
+        super("Authenticated, but the account reported no ckdatabasews host - can't reach Notes.", {
+            hint: "Check that Notes is enabled for this Apple ID (icloud.com → Notes) and try again.",
+        });
+    }
+}
+/** A tracked directory's `.icloud-md/state.json` doesn't match the shape `clone`/`pull`/`push` produce - hand-edited, truncated, or from an incompatible version. */
+export class CorruptStateFileError extends IcloudNotesSyncError {
+    constructor(message) {
+        super(message, {
+            hint: "This usually means state.json was hand-edited or written by an incompatible version. If you don't have " +
+                "local edits worth preserving, remove .icloud-md/ and run \"icloud-md clone\" again into a fresh directory.",
+        });
+    }
+}
+/** `clone` only ever performs the initial export into a directory - mirrors `git clone`'s own refusal to run against a non-empty destination. */
+export class AlreadyClonedDirectoryError extends IcloudNotesSyncError {
+    constructor(targetDir) {
+        super(`${targetDir} is already a cloned notes directory (.icloud-md/state.json exists).`, {
+            hint: 'Run "icloud-md pull" instead to fetch changes into an existing clone.',
+        });
+    }
+}
+/** A folder's state.json predates per-folder account binding (or was hand-edited to drop it) - there's no account to resolve a session for. */
+export class UnboundAccountError extends IcloudNotesSyncError {
+    constructor(targetDir) {
+        super(`${targetDir} has no account bound to it (missing "account" in .icloud-md/state.json).`, {
+            hint: "This folder may predate per-folder account binding. If you don't have local edits worth preserving, " +
+                'remove .icloud-md/ and run "icloud-md clone" again into a fresh directory.',
+        });
+    }
+}
+/**
+ * A folder is bound to one Apple ID, but the session just authenticated (via
+ * `reauthenticate`, or headless 421 recovery) is for a different one. Refuses
+ * rather than silently rebinding the folder to a new account - that would
+ * risk `pull`/`push` quietly mixing one person's notes into another's vault.
+ */
+/**
+ * `clone --account <ref>` named an account this machine has never signed
+ * into. The hint lists the accounts that *are* available, because the usual
+ * cause is a typo or a half-remembered Apple ID, and the fix is visible from
+ * that list.
+ */
+export class UnknownAccountError extends IcloudNotesSyncError {
+    constructor(reference, known) {
+        super(`No account matching "${reference}" has been signed in on this machine.`, {
+            hint: known.length > 0
+                ? `Known accounts: ${known.join(", ")}. Omit --account to sign in as someone else.`
+                : 'No accounts are signed in yet - run "icloud-md clone <directory>" without --account to sign in for the first time.',
+        });
+    }
+}
+/**
+ * `clone --account <ref>` completed a sign-in for a different Apple ID than
+ * the one requested - the trusted profile resumed as somebody else. Distinct
+ * from `AccountMismatchError`, which is about an *existing* clone's binding;
+ * here nothing has been cloned yet, so the wording is about the request.
+ */
+export class RequestedAccountMismatchError extends IcloudNotesSyncError {
+    constructor(requested, actualAppleId) {
+        super(`--account asked for ${requested}, but the completed sign-in is for ${actualAppleId}.`, {
+            hint: `Sign out of ${actualAppleId} in the saved browser profile, or omit --account to choose interactively.`,
+        });
+    }
+}
+/**
+ * A sign-in needing a human came up while running `--non-interactive`.
+ *
+ * Opening a window in an unattended context is worse than failing: nobody is
+ * there to complete it, so the command blocks until something closes it (the
+ * live integration suite paid 5.5 minutes per clone this way on 2026-08-02
+ * before giving up). Failing immediately says what actually happened.
+ */
+export class InteractiveSignInRefusedError extends IcloudNotesSyncError {
+    constructor(message, options = {}) {
+        super(message, {
+            ...options,
+            hint: "Sign in once with a browser window available - \"icloud-md reauthenticate <clone>\" for a known account, or " +
+                '"icloud-md clone <directory>" without --non-interactive - and then retry.',
+        });
+    }
+}
+export class AccountMismatchError extends IcloudNotesSyncError {
+    constructor(targetDir, expectedAppleId, actualAppleId) {
+        super(`${targetDir} was cloned for ${expectedAppleId}, but the session just authenticated is for ${actualAppleId}.`, {
+            hint: `Sign in as ${expectedAppleId} to continue working with this folder.`,
+        });
+    }
+}
+/**
+ * A CloudKit/network request came back non-OK with only an HTTP status to go
+ * on - could be a transient network or service blip, could be a real
+ * protocol-level bug. There's no specific fix to point at either way, so the
+ * hint defaults to generic advice; a caller (or subclass) with a more
+ * specific diagnosis can pass its own. The message keeps the
+ * operation/status detail for anyone filing an issue.
+ */
+export class CloudKitRequestFailedError extends IcloudNotesSyncError {
+    constructor(message, options = {}) {
+        super(message, {
+            ...options,
+            hint: options.hint ??
+                "This may be a transient network or iCloud-service issue - wait a moment and try again. If it keeps " +
+                    "happening, please open a GitHub issue including this message.",
+        });
+    }
+}
+/**
+ * A zone-level failure delivered inside an HTTP 200 `changes/zone` response:
+ * the zone entry carries `serverErrorCode`/`reason` instead of records. The
+ * code is exposed as a field so callers can react to one specific condition
+ * (e.g. tolerating ZONE_NOT_FOUND for a shared zone whose share was revoked)
+ * without string-matching the message. ZONE_NOT_FOUND also replaces the
+ * generic "wait and retry" hint, which is actively wrong for a zone that no
+ * longer exists - retrying fails identically every time.
+ */
+export class CloudKitZoneFetchFailedError extends CloudKitRequestFailedError {
+    serverErrorCode;
+    constructor(serverErrorCode, reason) {
+        const options = {};
+        if (serverErrorCode === "ZONE_NOT_FOUND") {
+            options.hint =
+                "The server no longer has this zone - most likely a share that was revoked or deleted. Retrying won't " +
+                    "change that; if this keeps aborting a clone or pull, please open a GitHub issue including this message.";
+        }
+        super(`changes/zone failed for a zone: ${serverErrorCode} (${reason})`, options);
+        this.serverErrorCode = serverErrorCode;
+    }
+}
+/** A `history`/`diff`/`revert` snapshot id that doesn't match any recorded
+ * version for the given file - either mistyped, or from a different file's
+ * history. */
+export class UnknownVersionSnapshotError extends IcloudNotesSyncError {
+    constructor(id, fileName) {
+        super(`No version snapshot with id "${id}" found for "${fileName}".`, {
+            hint: `Run "icloud-md history ${fileName}" to see available snapshot ids.`,
+        });
+    }
+}
+/** `delete` fetched a fresh recordChangeTag immediately before writing, so a
+ * rejection here means something changed the note in that narrow window
+ * (or a genuine CloudKit-side problem) rather than the stale-tag conflict
+ * `push` routinely expects. */
+export class NoteDeleteRejectedError extends IcloudNotesSyncError {
+    constructor(fileName, serverErrorCode, reason) {
+        const detail = reason ? ` (${reason})` : "";
+        super(`Can't delete "${fileName}": the server rejected it: ${serverErrorCode}${detail}.`, {
+            hint: 'Run "icloud-md pull" to refresh local state, then try again.',
+        });
+    }
+}
+/** `object show`/`object delete` looked up a recordName that doesn't
+ * resolve to anything in the zone. */
+export class UnknownObjectError extends IcloudNotesSyncError {
+    constructor(recordName, options = {}) {
+        super(`No object named "${recordName}" exists in the Notes zone.`, {
+            hint: options.maybeDeleted
+                ? 'It may already be permanently deleted. Run "icloud-md object list" to see what exists.'
+                : 'Run "icloud-md object list" to see what exists (recordNames are case-sensitive).',
+        });
+    }
+}
+/** `object delete --force` found the target blocked by referrers it won't
+ * cascade into: a Folder or another Note is collateral, not per-note
+ * cleanup, so it stops and names them instead. */
+export class ObjectForceDeleteBlockedError extends IcloudNotesSyncError {
+    constructor(recordName, blockers) {
+        const listed = blockers.map((blocker) => `${blocker.recordType} ${blocker.recordName}`).join(", ");
+        super(`Can't force-delete "${recordName}": it's referenced by record(s) --force won't delete for you: ${listed}.`, {
+            hint: 'Delete those explicitly first ("icloud-md object delete <recordName>") if you really mean to, then retry.',
+        });
+    }
+}
+/** Deleting a structural record (a Folder) detaches everything under it -
+ * unlike a Note or Attachment, where naming the ID is intent enough, this
+ * needs an explicit --yes. */
+export class ObjectDeleteNeedsConfirmationError extends IcloudNotesSyncError {
+    constructor(recordType, recordName) {
+        super(`Deleting a ${recordType} record affects everything under it, not just the record itself.`, {
+            hint: `Re-run with --yes if you really mean it: "icloud-md object delete ${recordName} --yes".`,
+        });
+    }
+}
+/** `diff`/`revert` couldn't read the content needed on one side of the
+ * comparison (or write-back) - the target record vanished remotely, is no
+ * longer in a readable state, or a historical snapshot no longer decodes
+ * cleanly against the current model. */
+export class VersionContentUnavailableError extends IcloudNotesSyncError {
+    constructor(reason) {
+        super(`Can't complete this operation: ${reason}.`, {
+            hint: 'Run "icloud-md pull" to refresh local state, then try again.',
+        });
+    }
+}
+//# sourceMappingURL=errors.js.map

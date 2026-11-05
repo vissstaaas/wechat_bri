@@ -1,0 +1,73 @@
+{
+  "name": "icloud-md",
+  "version": "0.6.2",
+  "type": "module",
+  "description": "Your iCloud notes as real Markdown files, on any OS, bidirectionally synced with a git-flavored CLI",
+  "license": "MIT",
+  "author": "Adam Coddington",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coddingtonbear/icloud-md.git"
+  },
+  "homepage": "https://github.com/coddingtonbear/icloud-md#readme",
+  "bugs": {
+    "url": "https://github.com/coddingtonbear/icloud-md/issues"
+  },
+  "keywords": [
+    "apple-notes",
+    "icloud",
+    "notes",
+    "sync",
+    "cli",
+    "git"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "icloud-md": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:integration": "tsc -p tsconfig.integration.json",
+    "toc": "markdown-toc -i README.md",
+    "import-har": "tsx src/scripts/importHar.ts",
+    "test": "tsx --test $(find src integration -name '*.test.ts' ! -name 'live.test.ts')",
+    "test:integration": "npm run build && tsx --test integration/live.test.ts",
+    "itest:setup": "tsx integration/setupFolder.ts",
+    "itest:sweep": "tsx integration/sweep.ts",
+    "proto:generate": "buf generate",
+    "proto:check": "tsx src/scripts/checkProtoDrift.ts"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.71.0",
+    "@bufbuild/protoc-gen-es": "^2.12.1",
+    "@types/cli-progress": "^3.11.6",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^20.14.0",
+    "markdown-toc": "^1.2.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.1",
+    "chalk": "^5.6.2",
+    "cli-progress": "^3.12.0",
+    "commander": "^14.0.3",
+    "mdast-util-to-string": "^4.0.0",
+    "node-diff3": "^3.2.1",
+    "ora": "^9.4.1",
+    "playwright": "^1.61.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.9.0"
+  }
+}

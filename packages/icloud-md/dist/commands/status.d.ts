@@ -1,0 +1,28 @@
+import { type SerializedPlanEntry } from "../notes/pushPlan.js";
+import type { SyncNotice } from "../progress.js";
+export interface StatusOptions {
+    onLoginStatus?: (message: string) => void;
+}
+export interface StatusResult {
+    entries: SerializedPlanEntry[];
+    /** Tracked notes the plan left untouched - the "N other notes match the
+     * last pull." figure on the human status screen. */
+    unchanged: number;
+    /** Plan-level warnings that aren't about one entry - see
+     * `BuildPushPlanResult.notices`. Shown here too, so `status` keeps telling
+     * the whole truth about what a `push` would do. */
+    notices: SyncNotice[];
+}
+/**
+ * `git status --short`-style preview of exactly what the next `push` will
+ * do: creates, deletes, changes, and anything `push` would refuse and why -
+ * built on the exact same plan `push --dry-run` computes, so the two can
+ * never disagree. See the "Push becomes the full reconciler" project notes.
+ *
+ * Unlike the original design for this command, `status` performs a real
+ * login and live record fetch (the same one `push --dry-run` already
+ * needed) - most refusal reasons only resolve after seeing the current
+ * remote record, so there's no way to preserve full refusal parity while
+ * also staying offline.
+ */
+export declare function runStatus(targetDir: string, options?: StatusOptions): Promise<StatusResult>;
