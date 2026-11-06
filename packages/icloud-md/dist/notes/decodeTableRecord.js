@@ -1,0 +1,430 @@
+/**
+ * Reads and writes a table's `MergeableDataEncrypted` payload (an
+ * `Attachment` record whose `UTI` is `com.apple.notes.table`) - a
+ * GitHub-flavored-Markdown pipe table on one side, the object-pool CRDT
+ * structure Apple's client uses on the other.
+ *
+ * The structure was reverse-engineered from real captures, cross-checked
+ * against threeplanetssoftware/apple_cloud_notes_parser's
+ * `AppleNotesEmbeddedTable.rb` (MIT licensed) - see the project dev notes,
+ * "Consolidated reference: the complete `com.apple.notes.table`
+ * MergeableData structure" (2026-07-14T14:46) and "Table write path planned
+ * end-to-end" (2026-07-15T14:51) - and since 2026-07-16 aligned with
+ * Apple's own recovered schema names (dev log 2026-07-16T15:18); see
+ * `proto/crdt.proto` for the generated-schema field names used below and
+ * the old-name -> Apple-name mapping.
+ *
+ * Shape, once decompressed the same way `decompressNoteDocument` does:
+ *
+ *   versioned_document.Document > Version.data (see `versionedDocument.ts`)
+ *   CRDT.Document
+ *     .object[]    object pool (`DocObject`s), addressed by index everywhere
+ *                  else via an ObjectID's `objectIndex` ("ref N" below)
+ *     .keyItem[]   key-name table (strings)
+ *     .uuidItem[]  UUID table (16-byte UUIDs, plain-index addressed)
+ *     .version     the document's version vector (see `mergeableDataPool.ts`)
+ *
+ * `pool[0]` is the table object: a `custom` object (field 13), repeated
+ * `MapEntry { key: key-table-index, value: ObjectID }` pairs, with keys
+ * `crRows`, `crColumns`, `cellColumns` (each a ref) resolved via the
+ * key-name table.
+ *
+ * `crRows`/`crColumns` are `tsOrderedSet` objects (field 16): `.array.array`
+ * (a `StringArray`) is the true visual-order list - its `.attachments[]` are
+ * the ordered `{attachmentIndex (redundant, ignored on read), contents (a
+ * 16-byte identity UUID)}` entries, list position = visual position; its
+ * `.contents` is a hidden per-character CRDT mirror of that same list (one
+ * U+FFFC per entry) that Apple's client uses for concurrent-insert merge
+ * resolution - our own decode never reads it (position comes from
+ * `attachments` order), but every edit `tableEdit.ts` makes maintains it by
+ * real topotext splice, because *not* maintaining it is exactly what
+ * corrupted a live table under the first write-path design (dev notes,
+ * 2026-07-15T21:54 and 2026-07-16T16:31).
+ * `.array.dictionary` is the identity-redirect `Dictionary` permanently
+ * joining each entry's *ordering* identity to its *content* identity (see
+ * the identity-pair paragraph below) - not an order signal itself, though
+ * `computePositions` follows it so stale references resolve.
+ * `.set` (of `OrderedSet` itself) is a `Dictionary` of trivial
+ * `{key: ref, value: ref}` self-pairs, one per live `attachments` entry
+ * (confirmed via real captures) - membership bookkeeping this project's
+ * decode never reads, kept in sync on every structural edit by
+ * `tableEdit.ts`.
+ *
+ * A row/column identity object is a `custom` object (`type` 2, confirmed via
+ * real captures) with exactly one entry, key `UUIDIndex`, value a plain
+ * inline number (`ObjectID.unsignedIntegerValue`) - the index into the
+ * document-level UUID table. This value, not the object's own pool position,
+ * is the join key used everywhere below. Every row/column is born as an
+ * identity *pair* - an ordering identity (listed in `attachments`,
+ * self-paired in `set`) and a content identity (keying `cellColumns`/
+ * row-map entries), joined by a `.array.dictionary` redirect entry - a
+ * structural fact of the format from the literal first save, not
+ * concurrent-edit residue as this file's earlier revisions guessed (dev
+ * notes 2026-07-16T16:31); `tableEdit.ts`'s inserts mint real pairs
+ * accordingly. Deletion retains both identity objects and the redirect
+ * forever, which is why long-lived tables carry identities no live position
+ * references.
+ *
+ * `cellColumns` is a `dictionary` (field 6), repeated `Dictionary.Element
+ * {key: ref to a column identity object, value: ref to that column's
+ * row-map object}`. A row-map object has the identical shape: `{key: ref to
+ * a row identity object, value: ref to a cell-text object}`. A cell-text
+ * object is a `string` (a `topotext.String`, field 10) whose `.string` is
+ * the literal cell text - the ground truth this project's decode reads
+ * directly, rather than reconstructing visible text from `substring` history
+ * the way the top-level note body's decode does (see `tableCellEdit.ts` for
+ * why edits still have to maintain that history correctly regardless).
+ *
+ * Row 0 is not structurally special: deleting the header row goes through
+ * the exact same mechanism as any other row (confirmed via a real capture,
+ * dev notes 2026-07-15T14:51) - it's rendered as a GFM header row purely
+ * because GFM pipe tables require one syntactically.
+ */
+import { fromBinary, isFieldSet, toBinary } from "@bufbuild/protobuf";
+import { compressNoteDocument, decompressNoteDocument } from "./noteText.js";
+import { renderMarkdownTable } from "./markdownTable.js";
+import { DocumentSchema as CrdtDocumentSchema, ObjectIDSchema, } from "./gen/crdt_pb.js";
+import { parseVersionedDocument, encodeVersionedDocument } from "./versionedDocument.js";
+export const OBJECT_INDEX_FIELD = ObjectIDSchema.fields.find((f) => f.localName === "objectIndex");
+export const UNSIGNED_INTEGER_VALUE_FIELD = ObjectIDSchema.fields.find((f) => f.localName === "unsignedIntegerValue");
+const STRING_VALUE_FIELD = ObjectIDSchema.fields.find((f) => f.localName === "stringValue");
+const TABLE_OBJECT_INDEX = 0;
+const LEFT_TO_RIGHT_DIRECTION = "CRTableColumnDirectionLeftToRight";
+export function decodeTableMarkdown(compressedMergeableData) {
+    const doc = parseTableDocument(compressedMergeableData);
+    return renderMarkdownTable(gridFromTableDocument(doc));
+}
+export function gridFromTableDocument(doc) {
+    const resolved = resolveTable(doc);
+    const numRows = resolved.rows.length;
+    const numCols = resolved.columns.length;
+    if (numCols === 0) {
+        throw new Error("Table has no columns - refusing to guess at its structure");
+    }
+    const grid = Array.from({ length: numRows }, () => Array(numCols).fill(""));
+    resolved.rows.forEach((_row, rowPos) => {
+        resolved.columns.forEach((_col, colPos) => {
+            const cell = resolved.cells.get(cellKey(rowPos, colPos));
+            if (cell) {
+                const rowCells = grid[rowPos];
+                if (rowCells) {
+                    rowCells[colPos] = cell.text;
+                }
+            }
+        });
+    });
+    return grid;
+}
+/** Keys `ResolvedTable.cells` by *position* (index into `ResolvedTable.rows`/
+ * `.columns`), not by UUID-table index - real captures occasionally have a
+ * row/column identity referenced by `cellColumns` that differs from the one
+ * referenced by `crRows`/`crColumns`' own `OrderedSet.array` for the exact
+ * same visual row/column (see `decodeTableRecord.ts`'s file header on
+ * identity-pair residue), reconciled only via `computePositions`' redirect
+ * following - so position, not raw identity, is the only key that's
+ * guaranteed consistent between `resolveTable`'s two passes. */
+export function cellKey(rowPosition, columnPosition) {
+    return `${rowPosition},${columnPosition}`;
+}
+// --- parse / encode / round-trip ------------------------------------------
+export function parseTableDocument(compressedMergeableData) {
+    const raw = decompressNoteDocument(compressedMergeableData);
+    const wrapper = parseVersionedDocument(raw);
+    const document = fromBinary(CrdtDocumentSchema, wrapper.data);
+    const pool = poolFromMessage(document);
+    assertLeftToRight(pool);
+    const refs = resolveTableRefs(pool);
+    return { ...pool, wrapper, document, ...refs };
+}
+/** `parseTableDocument` + `toBinary`/compress - always reflects `doc.document`
+ * as currently mutated, since `doc.objects`/`.keyNames`/`.uuidTable` are the
+ * same array references embedded in it. */
+export function encodeTableDocument(doc) {
+    const raw = encodeVersionedDocument(doc.wrapper, toBinary(CrdtDocumentSchema, doc.document));
+    return compressNoteDocument(raw);
+}
+/** The byte-for-byte round-trip gate over the *decompressed* bytes, same
+ * discipline as `noteDocumentRoundTrips` - the compressed container isn't
+ * compared, since re-deflating isn't guaranteed byte-stable and isn't what
+ * we're actually verifying (whether our model captured everything). */
+export function tableDocumentRoundTrips(compressedMergeableData) {
+    let raw;
+    try {
+        raw = decompressNoteDocument(compressedMergeableData);
+    }
+    catch {
+        return false;
+    }
+    try {
+        const wrapper = parseVersionedDocument(raw);
+        const document = fromBinary(CrdtDocumentSchema, wrapper.data);
+        const pool = poolFromMessage(document);
+        assertLeftToRight(pool);
+        resolveTableRefs(pool);
+        const reencoded = encodeVersionedDocument(wrapper, toBinary(CrdtDocumentSchema, document));
+        return bytesEqual(raw, reencoded);
+    }
+    catch {
+        return false;
+    }
+}
+function poolFromMessage(document) {
+    const version = document.version;
+    if (!version) {
+        throw new Error("Table document is missing its version vector (CRDT.Document field 1)");
+    }
+    return {
+        objects: document.object,
+        keyNames: document.keyItem,
+        uuidTable: document.uuidItem,
+        version,
+    };
+}
+function resolveTableRefs(pool) {
+    const tableObject = pool.objects[TABLE_OBJECT_INDEX];
+    if (!tableObject) {
+        throw new Error("Table object pool is empty");
+    }
+    const table = parseDictByName(pool, tableObject, "table object");
+    return {
+        crRowsRef: resolveRef(requireEntry(table, "crRows"), "crRows"),
+        crColumnsRef: resolveRef(requireEntry(table, "crColumns"), "crColumns"),
+        cellColumnsRef: resolveRef(requireEntry(table, "cellColumns"), "cellColumns"),
+    };
+}
+// --- resolving rows/columns/cells ------------------------------------------
+export function resolveTable(doc) {
+    const rowSet = parseOrderedSet(doc, doc.crRowsRef);
+    const columnSet = parseOrderedSet(doc, doc.crColumnsRef);
+    const rowPositions = computePositions(doc, rowSet);
+    const columnPositions = computePositions(doc, columnSet);
+    const rows = rowSet.arrayUuidIndexes.map((uuidIndex) => identityOf(doc, uuidIndex));
+    const columns = columnSet.arrayUuidIndexes.map((uuidIndex) => identityOf(doc, uuidIndex));
+    const cells = new Map();
+    for (const { a: columnRef, b: rowMapRef } of parseRefPairList(doc, doc.cellColumnsRef, "cellColumns")) {
+        const columnPosition = columnPositions.get(uuidIndexOfRef(doc, resolveRef(columnRef, "cellColumns entry column ref")));
+        if (columnPosition === undefined) {
+            throw new Error("Table column reference does not resolve to a known column position");
+        }
+        for (const { a: rowRef, b: cellTextRef } of parseRefPairList(doc, resolveRef(rowMapRef, "cellColumns entry row-map ref"), "column row-map")) {
+            const rowPosition = rowPositions.get(uuidIndexOfRef(doc, resolveRef(rowRef, "row-map entry row ref")));
+            if (rowPosition === undefined) {
+                throw new Error("Table row reference does not resolve to a known row position");
+            }
+            const textRef = resolveRef(cellTextRef, "row-map entry cell-text ref");
+            cells.set(cellKey(rowPosition, columnPosition), { textRef, text: resolveCellText(doc, textRef) });
+        }
+    }
+    return { rows, columns, cells };
+}
+/** Finds a row/column's identity object by UUID-table index. Every entry in
+ * an `OrderedSet.array` is guaranteed to resolve (that's how
+ * `computePositions`/`uuidIndexOfRef` establish the position map in the
+ * first place), so this re-scans the pool once per row/column - fine at
+ * table sizes this project has ever seen. Exported for `tableEdit.ts`: real
+ * captures occasionally have more than one identity object sharing the same
+ * UUID-table index (apparently residue from Apple's own concurrent-edit
+ * history - see the file header); this always returns the *first* match,
+ * but every caller here and in `tableEdit.ts` treats row/column identity by
+ * UUID-table index throughout, never by raw pool ref, so which specific
+ * duplicate this resolves to never matters. */
+export function identityOf(pool, uuidIndex) {
+    const uuidIndexKeyIndex = pool.keyNames.indexOf("UUIDIndex");
+    for (let ref = 0; ref < pool.objects.length; ref += 1) {
+        const entry = pool.objects[ref];
+        if (!entry?.custom || entry.custom.mapEntry.length !== 1) {
+            continue;
+        }
+        const [mapEntry] = entry.custom.mapEntry;
+        if (mapEntry &&
+            mapEntry.key === uuidIndexKeyIndex &&
+            mapEntry.value &&
+            isFieldSet(mapEntry.value, UNSIGNED_INTEGER_VALUE_FIELD) &&
+            Number(mapEntry.value.unsignedIntegerValue) === uuidIndex) {
+            return { identityRef: ref, uuidIndex };
+        }
+    }
+    throw new Error(`Table array entry's UUID-table index ${uuidIndex} has no matching identity object in the pool`);
+}
+/**
+ * `crTableColumnDirection`'s value is a reference into a confusing extra
+ * indirection layer we haven't fully mapped (its ref doesn't point straight
+ * at the enum dict - see dev notes, cross-check entry). `AppleNotesEmbeddedTable.rb`
+ * sidesteps this entirely by scanning the whole pool for the one dict object
+ * whose single entry's key-table index equals `crTableColumnDirection`'s own
+ * index + 1 (a quirk the reference implementation's own comment calls out as
+ * unexplained), which is what this does too - ported rather than re-derived,
+ * since only left-to-right tables have been captured and verified so far.
+ * Column order/`OrderedSet` resolution above is direction-agnostic (it just
+ * reflects `crColumns`' list order), so a right-to-left table would render
+ * with reversed columns if we didn't refuse it here.
+ */
+function assertLeftToRight(pool) {
+    const directionKeyIndex = pool.keyNames.indexOf("crTableColumnDirection") + 1;
+    const directionKeyName = pool.keyNames[directionKeyIndex];
+    if (directionKeyName === undefined) {
+        throw new Error("Table's key-name table is missing the column-direction marker's key");
+    }
+    for (const object of pool.objects) {
+        let dict;
+        try {
+            dict = parseDictByName(pool, object, "direction candidate");
+        }
+        catch {
+            continue;
+        }
+        if (dict.size !== 1) {
+            continue;
+        }
+        const value = dict.get(directionKeyName);
+        if (!value || !isFieldSet(value, STRING_VALUE_FIELD)) {
+            continue;
+        }
+        const direction = value.stringValue;
+        if (direction !== LEFT_TO_RIGHT_DIRECTION) {
+            throw new Error(`Table has unsupported column direction "${direction}" - refusing to guess at column order`);
+        }
+        return;
+    }
+    // No direction marker found at all: every capture so far has one, so
+    // treat its absence as "we don't understand this table" rather than
+    // silently assuming left-to-right.
+    throw new Error("Table is missing its column-direction marker");
+}
+/** Resolves a `custom` object (a `CustomObject`, field 13) into its
+ * key-name -> ObjectID pairs. Exported for `tableEdit.ts`: rebuilding
+ * pool[0] from scratch needs to read its current `identity`/
+ * `crTableColumnDirection` entries first. */
+export function parseDictByName(pool, entry, label) {
+    const customMap = entry.custom;
+    if (!customMap) {
+        throw new Error(`Expected ${label} to be a custom object (field 13)`);
+    }
+    const result = new Map();
+    for (const pair of customMap.mapEntry) {
+        const keyName = pool.keyNames[pair.key];
+        if (keyName !== undefined && pair.value) {
+            result.set(keyName, pair.value);
+        }
+    }
+    return result;
+}
+export function requireEntry(dict, key) {
+    const value = dict.get(key);
+    if (!value) {
+        throw new Error(`Table object is missing expected key "${key}"`);
+    }
+    return value;
+}
+/** Resolves an `ObjectID` known to be a pool reference (`objectIndex`). */
+export function resolveRef(objectId, label) {
+    if (!isFieldSet(objectId, OBJECT_INDEX_FIELD)) {
+        throw new Error(`Expected ${label} to be a pool reference`);
+    }
+    return objectId.objectIndex;
+}
+/** Resolves an `ObjectID` known to be an inline number (`unsignedIntegerValue`). */
+function resolveNumber(objectId, label) {
+    if (!isFieldSet(objectId, UNSIGNED_INTEGER_VALUE_FIELD)) {
+        throw new Error(`Expected ${label} to be an inline number`);
+    }
+    return Number(objectId.unsignedIntegerValue);
+}
+/** A row/column identity object: a one-entry dict, key `UUIDIndex`. Exported
+ * for `tableEdit.ts`. */
+export function uuidIndexOfRef(pool, poolRef) {
+    const entry = pool.objects[poolRef];
+    if (!entry) {
+        throw new Error(`Table pool reference ${poolRef} is out of range`);
+    }
+    const dict = parseDictByName(pool, entry, `pool[${poolRef}] identity object`);
+    return resolveNumber(requireEntry(dict, "UUIDIndex"), `pool[${poolRef}] UUIDIndex`);
+}
+function findUuidTableIndex(pool, uuidBytes) {
+    const index = pool.uuidTable.findIndex((candidate) => bytesEqual(candidate, uuidBytes));
+    if (index === -1) {
+        throw new Error("Table array entry's UUID was not found in the document UUID table");
+    }
+    return index;
+}
+export function parseOrderedSet(pool, poolRef) {
+    const entry = pool.objects[poolRef];
+    if (!entry) {
+        throw new Error(`Table pool reference ${poolRef} is out of range`);
+    }
+    const orderedSet = entry.tsOrderedSet;
+    if (!orderedSet) {
+        throw new Error(`Expected pool[${poolRef}] to be an OrderedSet (field 16)`);
+    }
+    const ordering = orderedSet.array;
+    if (!ordering) {
+        throw new Error("OrderedSet is missing its array (ordering) field");
+    }
+    const stringArray = ordering.array;
+    if (!stringArray) {
+        throw new Error("OrderedSet ordering is missing its string-array field");
+    }
+    const arrayUuidIndexes = stringArray.attachments.map((attachment) => findUuidTableIndex(pool, attachment.contents));
+    const contents = [];
+    if (ordering.dictionary) {
+        for (const pair of ordering.dictionary.element) {
+            if (!pair.key || !pair.value) {
+                throw new Error("OrderedSet redirect pair is missing its key or value");
+            }
+            contents.push({
+                keyRef: resolveRef(pair.key, "redirect key"),
+                valueRef: resolveRef(pair.value, "redirect value"),
+            });
+        }
+    }
+    return { arrayUuidIndexes, contents };
+}
+export function computePositions(pool, orderedSet) {
+    const positions = new Map();
+    orderedSet.arrayUuidIndexes.forEach((uuidIndex, position) => positions.set(uuidIndex, position));
+    for (const { keyRef, valueRef } of orderedSet.contents) {
+        const position = positions.get(uuidIndexOfRef(pool, keyRef));
+        if (position !== undefined) {
+            positions.set(uuidIndexOfRef(pool, valueRef), position);
+        }
+    }
+    return positions;
+}
+// --- cellColumns / row-map / cell text ----------------------------------
+/** `cellColumns` and each column's row-map share the same `dictionary`
+ * (field 6), repeated `Dictionary.Element {key: ref, value: ref}` shape. */
+export function parseRefPairList(pool, poolRef, label) {
+    const entry = pool.objects[poolRef];
+    if (!entry) {
+        throw new Error(`Table pool reference ${poolRef} is out of range`);
+    }
+    const dictionary = entry.dictionary;
+    if (!dictionary) {
+        throw new Error(`Expected ${label} (pool[${poolRef}]) to be a dictionary (field 6)`);
+    }
+    return dictionary.element.map((element) => {
+        if (!element.key || !element.value) {
+            throw new Error(`${label} entry is missing one of its two references`);
+        }
+        return { a: element.key, b: element.value };
+    });
+}
+export function resolveCellText(pool, poolRef) {
+    const entry = pool.objects[poolRef];
+    if (!entry) {
+        throw new Error(`Table pool reference ${poolRef} is out of range`);
+    }
+    const str = entry.string;
+    if (!str) {
+        throw new Error(`Expected pool[${poolRef}] to be a cell-text object (field 10)`);
+    }
+    return str.string;
+}
+// --- small shared helpers -------------------------------------------------
+export function bytesEqual(a, b) {
+    if (a.length !== b.length) {
+        return false;
+    }
+    return a.every((byte, i) => byte === b[i]);
+}
+//# sourceMappingURL=decodeTableRecord.js.map

@@ -1,0 +1,19 @@
+---
+apple-note-id: D172B309-58AE-4416-BF80-FCE7E981318B
+---
+
+a biology of my teacher Miss Zhang
+
+
+
+
+
+
+In the contemporary world, it is of great significance for youngsters to learn English well. English learning, thus, has gainedgreat popularity.
+However, I have a variety of difficulties or troubles in learning. For instance, I find it difficult to memorize new words. Frequently, it is also difficult for me to understand the rules of English grammar. Then, Miss Zhang was just a bright shine in my life. She said that practice makes perfect. She educated us that only practice can help us master grammatical knowledge and remember new words,and there is no other way.What's more,l was encouraged by her patience and wiseness.
+Later in studying life, I will try my utmost to practice English every day. The future of my English learning will be promising and hopeful. Last but not least, I want to thank my cute teacher-Miss Zhang.
+
+
+
+
+

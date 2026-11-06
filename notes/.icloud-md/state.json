@@ -1,0 +1,1037 @@
+{
+  "account": {
+    "appleId": "498158915@qq.com",
+    "dsid": "10078972069"
+  },
+  "syncToken": "HwoDCNMqGAAiFgilma3l5p3ttdEBENPSmYDs1N3gmQEoAA==",
+  "sharedZoneSyncTokens": {},
+  "replicaId": "5eWFzDd4oJkqsyB08juTcw==",
+  "titleMode": "in-body",
+  "notes": {
+    "D2B6DB9C-3549-4600-A256-FA2258E612F8": {
+      "file": "Notes/￼.md",
+      "recordChangeTag": "42p",
+      "modificationDate": 1793439184420,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D6FDDCA0-42ED-4DF0-B868-B61AE9D3334F": {
+      "file": "Notes/￼ 3.md",
+      "recordChangeTag": "423",
+      "modificationDate": 1786260647743,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "FDC16A05-41E2-478E-8A1E-38B932B230CA": {
+      "file": "Notes/想了很久感觉还是有必要去聊一聊这个问题的，就是我们俩一聊到前任这话题好像就开始会有一些沉默抛出来，我不知道为什么我们渐渐会有这种感觉，也有可能是我单方面的这种感.md",
+      "recordChangeTag": "41n",
+      "modificationDate": 1784824093376,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "F4B96357-49CF-46F6-98F3-213EC14C206F": {
+      "file": "Notes/同月同风同日雨.md",
+      "recordChangeTag": "3yz",
+      "modificationDate": 1784337786956,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "DFEBA748-4B05-443E-A790-AD98B16EA69D": {
+      "file": "Notes/企业名称：.md",
+      "recordChangeTag": "3ws",
+      "modificationDate": 1783422590820,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "B21C257A-D20C-4F81-AE2E-E3EEB8F95E99": {
+      "file": "Notes/老大.md",
+      "recordChangeTag": "3wd",
+      "modificationDate": 1782619467479,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "494176E4-A627-4407-8070-FF47051CEF14": {
+      "file": "Notes/见面.md",
+      "recordChangeTag": "3w9",
+      "modificationDate": 1781834585523,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D9D91190-5851-478D-9EF8-9D34674F5BCC": {
+      "file": "Notes/2026年0605正式开始控制.md",
+      "recordChangeTag": "3v4",
+      "modificationDate": 1780757243712,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "560F42A0-825B-4C86-A31F-70AB5BA980B0": {
+      "file": "Notes/￼ 4.md",
+      "recordChangeTag": "3te",
+      "modificationDate": 1751291909267,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "BC86E792-6C42-4F4A-9572-11C0AE712A7C": {
+      "file": "Notes/今天我做到了.md",
+      "recordChangeTag": "3qx",
+      "modificationDate": 1777474162454,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "4784F38E-8511-464A-9F5A-357D8B967C8F": {
+      "file": "Notes/飞猪定了.md",
+      "recordChangeTag": "3qv",
+      "modificationDate": 1777393694399,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "ACE77637-8224-454D-A030-CA903DF23D53": {
+      "file": "我可以/今天我做到了.md",
+      "recordChangeTag": "3qt",
+      "modificationDate": 1777393609900,
+      "folderRecordName": "F5814966-543D-4A4F-9838-E3A0B0FD279C"
+    },
+    "EABE1D22-5334-4E6D-974E-B278A9719FA5": {
+      "file": "我可以/今天我做到了 2.md",
+      "recordChangeTag": "3qq",
+      "modificationDate": 1777302717067,
+      "folderRecordName": "F5814966-543D-4A4F-9838-E3A0B0FD279C"
+    },
+    "D9508721-8211-4E05-ACED-B90143F7CDF0": {
+      "file": "我可以/今天我做到了 3.md",
+      "recordChangeTag": "3qk",
+      "modificationDate": 1777126747621,
+      "folderRecordName": "F5814966-543D-4A4F-9838-E3A0B0FD279C"
+    },
+    "5FA66C4D-6B27-4B7A-9740-283517A609E3": {
+      "file": "我可以/Untitled.md",
+      "recordChangeTag": "3q2",
+      "modificationDate": 1776783207835,
+      "folderRecordName": "F5814966-543D-4A4F-9838-E3A0B0FD279C"
+    },
+    "3EF6ACFA-12FD-449F-A8BA-F6C6FA30CAFE": {
+      "file": "Notes/背日.md",
+      "recordChangeTag": "3pa",
+      "modificationDate": 1776420488045,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "F80AC094-F0B1-4306-941A-5659749FBA73": {
+      "file": "Notes/4月15日.md",
+      "recordChangeTag": "3p6",
+      "modificationDate": 1776215819558,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6DA440F2-6882-475D-9FB8-28371507DD67": {
+      "file": "Notes/4月13日.md",
+      "recordChangeTag": "3p3",
+      "modificationDate": 1776072323456,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6D6576FD-BA40-433F-9476-70F1494EA790": {
+      "file": "Notes/Untitled.md",
+      "recordChangeTag": "3p0",
+      "modificationDate": 1775233322693,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "3B4B4283-BAE0-41B7-B6EE-4F49B15354A6": {
+      "file": "Notes/httpssetup.icloud.comfamilymessagesaaaction=showFamilyInvite&inviteCode=EFI_Xs3N.md",
+      "recordChangeTag": "3og",
+      "modificationDate": 1775021604196,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "E30CC501-AF4E-4A63-BC83-C2BDBF5668CA": {
+      "file": "Notes/三分化.md",
+      "recordChangeTag": "3of",
+      "modificationDate": 1774954682774,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "17183841-847A-49F5-894C-E4E82FD32A44": {
+      "file": "Notes/早起口干 舌头涩 嘴唇干 想喝水.md",
+      "recordChangeTag": "3o0",
+      "modificationDate": 1774224804461,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3": {
+      "file": "Notes/🏋️♂️ 一周终极打卡表（训练+饮食+护肤·完整版）.md",
+      "recordChangeTag": "3n0",
+      "modificationDate": 1773450678659,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "5C600BAE-A776-4794-A93C-05C44399543F": {
+      "file": "Notes/备忘录.md",
+      "recordChangeTag": "3mn",
+      "modificationDate": 1771833820052,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "12CD207A-1C5B-4D15-8914-E15EE4CCA083": {
+      "file": "Notes/￼ 5.md",
+      "recordChangeTag": "3i2",
+      "modificationDate": 1771507507353,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "CA0E7035-BE6B-413E-9257-508BDB9E33DB": {
+      "file": "Notes/出于礼貌，随便讲两句.md",
+      "recordChangeTag": "3hx",
+      "modificationDate": 1771502483727,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D09B6CE8-D497-47B0-A03B-BE6C7DD50088": {
+      "file": "Notes/￼ 6.md",
+      "recordChangeTag": "3hv",
+      "modificationDate": 1770550106183,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "85CD66D8-5CAF-4D4A-91C0-D57E45FA5D35": {
+      "file": "Notes/￼ 7.md",
+      "recordChangeTag": "3hp",
+      "modificationDate": 1770550012518,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "090C2048-DBD6-4644-B06E-C36D7CEEF83A": {
+      "file": "Notes/￼ 8.md",
+      "recordChangeTag": "3hl",
+      "modificationDate": 1770549970297,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "E05C7B9E-D11C-40EB-90D0-29B4968AAC2C": {
+      "file": "Notes/￼ 9.md",
+      "recordChangeTag": "351",
+      "modificationDate": 1761809856474,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "7E0A97AC-C96B-4C8D-89C5-C8B15F7AE528": {
+      "file": "Notes/到厦门买一张彩票.md",
+      "recordChangeTag": "32o",
+      "modificationDate": 1759451512762,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "9820DD1C-02F5-4C38-AC4D-BBCB895FE6E4": {
+      "file": "Notes/￼ 10.md",
+      "recordChangeTag": "31z",
+      "modificationDate": 1751291933344,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6B6A289F-D7AA-4907-A6A4-225F43A3C48F": {
+      "file": "Notes/200809061101.md",
+      "recordChangeTag": "31w",
+      "modificationDate": 1679966582937,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "B9AC5AB2-B98A-4EBE-A214-C27DDB17734E": {
+      "file": "Notes/￼ 11.md",
+      "recordChangeTag": "31h",
+      "modificationDate": 1697979115516,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "7C438442-AA78-47FB-8C80-C09221720398": {
+      "file": "Notes/￼ 12.md",
+      "recordChangeTag": "30l",
+      "modificationDate": 1759387225027,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "F0B5C2BE-60D9-4946-AED5-D289B2215877": {
+      "file": "Notes/￼ 13.md",
+      "recordChangeTag": "30j",
+      "modificationDate": 1697973857258,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "EA76BC08-5463-48A0-8C24-25AFE7DCD8D0": {
+      "file": "Notes/￼ 14.md",
+      "recordChangeTag": "30c",
+      "modificationDate": 1697973949308,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "79AAEECC-C40A-4145-8BFB-F89F1D1018FC": {
+      "file": "Notes/榴莲.md",
+      "recordChangeTag": "303",
+      "modificationDate": 1754388202557,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "321449CA-DD86-42F7-8D67-BC111FC2B988": {
+      "file": "Notes/英语：第一二单元单词.md",
+      "recordChangeTag": "2wn",
+      "modificationDate": 1638093083276,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "A30E5982-A5AE-4CFF-BE1E-0A10CE7899B9": {
+      "file": "靠的是坚持/企业文化：平等交流务实创新服务.md",
+      "recordChangeTag": "2w1",
+      "modificationDate": 1746680786838,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "E111E044-4277-44A6-8F40-18C178D17CFD": {
+      "file": "靠的是坚持/Italent 账号13461363739.md",
+      "recordChangeTag": "2uy",
+      "modificationDate": 1745384158066,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "85C04703-A970-4F69-B916-D29B07B09593": {
+      "file": "靠的是坚持/￼.md",
+      "recordChangeTag": "2tw",
+      "modificationDate": 1740231840569,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "4E7D8CC3-FDB5-4432-A391-56642A0FB938": {
+      "file": "靠的是坚持/日期训练内容饮食安排.md",
+      "recordChangeTag": "2tv",
+      "modificationDate": 1740231828852,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "6DAEBBB7-B9D5-4158-B4D2-555DCB4553AD": {
+      "file": "靠的是坚持/日期训练内容具体安排.md",
+      "recordChangeTag": "2tu",
+      "modificationDate": 1740231284750,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "0C68259B-86C3-448A-B2C7-077787F65F6E": {
+      "file": "靠的是坚持/今天25×4弹力带拉伸.md",
+      "recordChangeTag": "2tt",
+      "modificationDate": 1740230974997,
+      "folderRecordName": "11BC7A21-1128-4153-BD4E-826CA733150E"
+    },
+    "10ACF709-FE83-4B51-BC18-FB4EF4EC9F04": {
+      "file": "Notes/机械表，答题笔，笔芯，橡皮，，，酒店退订.md",
+      "recordChangeTag": "2r9",
+      "modificationDate": 1734666506851,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "B3828F1D-F919-4BDC-B9BE-68C1E7583167": {
+      "file": "改变吧，真考不上了/8月31日计划.md",
+      "recordChangeTag": "2qz",
+      "modificationDate": 1732846606558,
+      "folderRecordName": "D1F3BF4E-F33F-445D-9B21-017A1F16C30C"
+    },
+    "BEC37E2E-6D86-46AC-B1C2-BBFAFC03BBBF": {
+      "file": "Notes/英语启航19971518837.md",
+      "recordChangeTag": "2qu",
+      "modificationDate": 1727709834743,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "C7321A9A-BD6C-4487-8FC9-6199824E959E": {
+      "file": "Notes/￼ 15.md",
+      "recordChangeTag": "2ql",
+      "modificationDate": 1727709806117,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "3510FFB5-55FF-4BC2-9EDA-829F24C897E5": {
+      "file": "Notes/19971518837.md",
+      "recordChangeTag": "2o8",
+      "modificationDate": 1721054904344,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "4966E5E4-C554-4486-AC2F-04EC06DF7973": {
+      "file": "Notes/鞋子，袜子，内裤，拖鞋，牙刷，身份证，水杯.md",
+      "recordChangeTag": "2o2",
+      "modificationDate": 1720633108194,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "2A1D382F-4E94-4C47-A826-0122A84D08F6": {
+      "file": "Notes/洗发水，.md",
+      "recordChangeTag": "2nf",
+      "modificationDate": 1719135119836,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D7E3176B-F59E-4238-AA55-281DA337CB33": {
+      "file": "Notes/23.6上半年预备党员.md",
+      "recordChangeTag": "2ne",
+      "modificationDate": 1718068274931,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "9AED00CA-AAA0-4565-8717-39E195075A87": {
+      "file": "Notes/大家好，在这里耽误大家一下时间，我是昨天杨宇鹏家长在群里寻找的艾梦凯，我和杨宇鹏是4.26号定于早上，8.22的高铁票一块回学校，在打车到太原南站进站口的时候，.md",
+      "recordChangeTag": "2my",
+      "modificationDate": 1714233522967,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "56D06DC5-651A-471C-897D-B179FC9DE9D2": {
+      "file": "Notes/车票第一程.md",
+      "recordChangeTag": "2cf",
+      "modificationDate": 1705848074155,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "2B19188E-EF93-48D6-9D1F-C68FFEEC9631": {
+      "file": "Notes/候补车次K1048.md",
+      "recordChangeTag": "2cc",
+      "modificationDate": 1705107160394,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "4304623D-DE13-4A5B-9B88-CF5FA3604B1B": {
+      "file": "Notes/￼ 16.md",
+      "recordChangeTag": "2bz",
+      "modificationDate": 1699187867351,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "710B3581-94A2-4624-AB7B-2DDEBAF85EBF": {
+      "file": "Notes/498158.md",
+      "recordChangeTag": "2bx",
+      "modificationDate": 1698301315783,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "81F09387-0AA0-49F2-AA17-2D628EAC1B72": {
+      "file": "Notes/￼ 17.md",
+      "recordChangeTag": "2b1",
+      "modificationDate": 1697973949115,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6323E821-B564-494C-81BA-462B371FDCDC": {
+      "file": "Notes/VIP666，vip666，XY888，QQXY888，happy666，HAPPY666，xyzwgame666，douyin666，douyin777，do.md",
+      "recordChangeTag": "2a0",
+      "modificationDate": 1696176499292,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "BC52499C-1976-47DE-9F0A-4D6A851174AB": {
+      "file": "Notes/￼ 18.md",
+      "recordChangeTag": "29w",
+      "modificationDate": 1695433762500,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "285D5941-CC88-48F2-9CFE-EC16860B7A32": {
+      "file": "Notes/￼ 19.md",
+      "recordChangeTag": "29u",
+      "modificationDate": 1695344783177,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "EFCC7A7F-31DA-4EE6-96FF-0A274E915544": {
+      "file": "Notes/￼ 20.md",
+      "recordChangeTag": "28r",
+      "modificationDate": 1694698544177,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "F20AF983-93E4-4E79-983F-C3A89B9D392E": {
+      "file": "Notes/线性代数复习了向量的基本性质，还有两节强化.md",
+      "recordChangeTag": "245",
+      "modificationDate": 1694698063260,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "4F507962-F395-4F01-87B3-E5E20E2255A5": {
+      "file": "Notes/vmesseyJ2IjoiMiIsInBzIjoi8J+HqPCfh7Nf5a6a5Yi25LiT57q77yaQFFTMDAwMDgiLCJhZGQiOiJ6.md",
+      "recordChangeTag": "231",
+      "modificationDate": 1693324184713,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "DEFCEDB1-8A5B-47A1-A2C1-367273EB72A5": {
+      "file": "Notes/Gpt账号密码ge1999109.-+.md",
+      "recordChangeTag": "1wk",
+      "modificationDate": 1683258250088,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "962C5E9F-2AF7-4CBA-8A7C-32E5E2D6EE61": {
+      "file": "Notes/￼ 21.md",
+      "recordChangeTag": "1w7",
+      "modificationDate": 1674638197431,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "036B726F-564C-407A-9E5A-682E780EBA39": {
+      "file": "Notes/￼ 22.md",
+      "recordChangeTag": "1w0",
+      "modificationDate": 1674106164028,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D8B28E6F-547A-4DAF-8742-258472F3959D": {
+      "file": "Notes/￼ 23.md",
+      "recordChangeTag": "1vw",
+      "modificationDate": 1673930119865,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "881796B2-37A6-4C75-B3F6-04C9978AFFD7": {
+      "file": "Notes/Untitled 2.md",
+      "recordChangeTag": "42v",
+      "modificationDate": 1672654800485,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "1AE27BAA-5CAE-421D-A1EA-BEBE44714335": {
+      "file": "Notes/几点的时候试卷到手？.md",
+      "recordChangeTag": "1mf",
+      "modificationDate": 1662512413160,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "5E79F595-E4A4-4BF9-84E5-0390CF1BE10F": {
+      "file": "Notes/十二星座.py.md",
+      "recordChangeTag": "1m9",
+      "modificationDate": 1656541123988,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "961EEA29-1995-4C10-AA03-7236205D792A": {
+      "file": "Notes/￼ 24.md",
+      "recordChangeTag": "130",
+      "modificationDate": 1642088842458,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "FE6A819D-A88D-434F-B2F3-79F62563F042": {
+      "file": "Notes/Untitled 3.md",
+      "recordChangeTag": "12r",
+      "modificationDate": 1640431429746,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "BC749DC1-0127-4131-AE19-B444CA59E125": {
+      "file": "Notes/Untitled 4.md",
+      "recordChangeTag": "42w",
+      "modificationDate": 1639130984898,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "C57B9404-6087-49F9-9614-C0416916EA99": {
+      "file": "Notes/昨天，今天，明天.md",
+      "recordChangeTag": "11n",
+      "modificationDate": 1619438598553,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "F3AA0320-E67E-4329-9754-1379FDE19673": {
+      "file": "Notes/各位转专业同学，请本周回原学院将入学报名登记表，考生信息表，体检表，总共三张表取回，交到本真楼南区211办公室邢小东老师。.md",
+      "recordChangeTag": "11m",
+      "modificationDate": 1619057166726,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6EBB4EC2-4035-4EFC-82F5-42D0D328E05E": {
+      "file": "Notes/形势与政策作业周五交.md",
+      "recordChangeTag": "11l",
+      "modificationDate": 1618841856488,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "0B15AC01-C047-4ABD-BD74-B43E4ED885C1": {
+      "file": "Notes/之所以说实践的观点是马克思主义哲学中首要的和基本的观点，是由实践本身的特点决定的。.md",
+      "recordChangeTag": "10q",
+      "modificationDate": 1637029205322,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "D172B309-58AE-4416-BF80-FCE7E981318B": {
+      "file": "Notes/a biology of my teacher Miss Zhang.md",
+      "recordChangeTag": "10o",
+      "modificationDate": 1636382932242,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "EDBF9794-C54F-4C26-95E8-82ABF05EBE26": {
+      "file": "Notes/How can one conquer the fear of delivering a speech in public.md",
+      "recordChangeTag": "10e",
+      "modificationDate": 1635169382849,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "35589912-DEF2-4A39-8023-53570FE596FB": {
+      "file": "Notes/没意思.md",
+      "recordChangeTag": "107",
+      "modificationDate": 1633325072478,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "82A97656-8F6F-4E74-B668-FF4DB1BF65D7": {
+      "file": "Notes/每一个大学生都要面对实习这也是我们必要经历的一个过程，这次实习，除了让我对华为和中国联通的基本业务有了一定了解，并且能进我觉得自己在其他方面的收获也是挺大的。作.md",
+      "recordChangeTag": "jz",
+      "modificationDate": 1625621564784,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6D530C3D-BE80-426F-A0ED-695FB0E9CE85": {
+      "file": "Notes/军事高技术的特点：高风险、高智力、高速度、高竞争、高效益、高保密、高投资！.md",
+      "recordChangeTag": "d1",
+      "modificationDate": 1625530665751,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "87AA0276-E03F-400D-AB0F-F8D0E67EA631": {
+      "file": "Notes/1.People can't do something by themselves; they wanna tell you you cannot do.md",
+      "recordChangeTag": "d0",
+      "modificationDate": 1624851580277,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "1026A62B-24E9-45A2-B18E-1DFE748B5052": {
+      "file": "Notes/Untitled 5.md",
+      "recordChangeTag": "42x",
+      "modificationDate": 1623746296431,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "53b55621-b637-4d8d-8033-2f922d55d492": {
+      "file": "Notes/微信收集箱.md",
+      "recordChangeTag": "471",
+      "modificationDate": 1793951031271,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "234e6d96-d880-4102-b8f6-833ff8c48c48": {
+      "file": "Notes/发往微信.md",
+      "recordChangeTag": "435",
+      "modificationDate": 1793865340116,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "e72d7e3f-8e7a-4b5e-a25d-501e4c914290": {
+      "file": "Notes/☑️ 待办与取件码.md",
+      "recordChangeTag": "47h",
+      "modificationDate": 1793955462714,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "d7e86066-19e0-4467-9271-95d52081d3af": {
+      "file": "Notes/💡 灵感与随手记.md",
+      "recordChangeTag": "462",
+      "modificationDate": 1793890647351,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "6035dac6-81c4-4a26-9560-b7c64e1dff6b": {
+      "file": "Notes/🔑 账号与重要速查.md",
+      "recordChangeTag": "47i",
+      "modificationDate": 1793955577208,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "f45b36b5-32cf-491b-86e1-a468bd8706b3": {
+      "file": "Notes/🔗 链接与稍后读.md",
+      "recordChangeTag": "47f",
+      "modificationDate": 1793953284664,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "5439C17F-DBB2-4571-BCA1-B52D139F19C0": {
+      "file": "Notes/🖼️ 微信图片速记测试.md",
+      "recordChangeTag": "47j",
+      "modificationDate": 1793955752478,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    },
+    "9A956C09-11D9-4BB4-AE31-E59353737FB9": {
+      "file": "手机短信/1.md",
+      "recordChangeTag": "472",
+      "modificationDate": 1793951058905,
+      "folderRecordName": "A34115E9-5D27-4D50-B29E-8AD4664E1253"
+    },
+    "17A76329-1B6E-4AE3-830D-FCAB14DA0795": {
+      "file": "Notes/短信转发.md",
+      "recordChangeTag": "47n",
+      "modificationDate": 1793956717978,
+      "folderRecordName": "DefaultFolder-CloudKit"
+    }
+  },
+  "folders": {
+    "DefaultFolder-CloudKit": {
+      "name": "Notes",
+      "dirName": "Notes"
+    },
+    "F5814966-543D-4A4F-9838-E3A0B0FD279C": {
+      "name": "我可以",
+      "dirName": "我可以"
+    },
+    "E1722302-DAFA-425D-BD17-1A1B054542E3": {
+      "name": "记录",
+      "dirName": "记录"
+    },
+    "11BC7A21-1128-4153-BD4E-826CA733150E": {
+      "name": "靠的是坚持",
+      "dirName": "靠的是坚持"
+    },
+    "D1F3BF4E-F33F-445D-9B21-017A1F16C30C": {
+      "name": "改变吧，真考不上了",
+      "dirName": "改变吧，真考不上了"
+    },
+    "C46A46EC-327E-463A-A180-C3381C00FFBA": {
+      "name": "20248.31",
+      "dirName": "20248.31"
+    },
+    "A34115E9-5D27-4D50-B29E-8AD4664E1253": {
+      "name": "手机短信",
+      "dirName": "手机短信"
+    }
+  },
+  "sharerHomes": {},
+  "attachments": {
+    "3D90CF43-22FB-466B-A7B8-25D853CD6EB2": {
+      "file": "我可以/attachments/IMG_0157.jpeg",
+      "mediaRecordName": "F7A2A866-07D3-439B-B463-99E99FEA5CA3",
+      "mediaFileChecksum": "AaRnqp+P9/T33MzVvinQp438u5/Q",
+      "noteRecordName": "5FA66C4D-6B27-4B7A-9740-283517A609E3"
+    },
+    "6E6C80F9-6ACB-458A-B57E-DD6AB90E6EDF": {
+      "file": "我可以/attachments/IMG_0156.jpeg",
+      "mediaRecordName": "5E0013D9-1F41-43B0-931B-4654D3E10FB0",
+      "mediaFileChecksum": "ASGbz+rn4Ocx1zqS67SLBtI7+iBa",
+      "noteRecordName": "5FA66C4D-6B27-4B7A-9740-283517A609E3"
+    },
+    "4B3255E4-D97F-4DFD-8C2F-3EEF41F09F84": {
+      "file": "Notes/attachments/IMG_6592.heic",
+      "mediaRecordName": "5FB82883-282C-42C9-882D-4A94561EBC33",
+      "mediaFileChecksum": "AXPXFNz/90s1PisjdeVdSQkC1C5K",
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "60B53506-45B4-4895-9D2F-ABF78DA39FC0": {
+      "file": "Notes/attachments/IMG_6593.heic",
+      "mediaRecordName": "62654A44-76AA-4001-9395-15286A1CD8F6",
+      "mediaFileChecksum": "AXHlVYuPKFPqOS5N9HH8sHtot4bt",
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "DFE40FBB-7594-4085-A7E6-976A34E67C83": {
+      "file": "Notes/attachments/IMG_6594.heic",
+      "mediaRecordName": "C8EABC15-B40F-4E72-926F-EF4312EA9B52",
+      "mediaFileChecksum": "AfVp5zjbUOyDe5XZppxSy6l6cxg/",
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "210E8984-EEBF-4477-8A54-6B7FFECC81BE": {
+      "file": "Notes/attachments/图像.heic",
+      "mediaRecordName": "7DAC4604-7CB3-430D-BA9F-EEEBE632F9F5",
+      "mediaFileChecksum": "AQkkVDTwQ2qEPMHLmy71J1fB+jyJ",
+      "noteRecordName": "7C438442-AA78-47FB-8C80-C09221720398"
+    },
+    "090E5E23-96E5-49BB-B58D-AAA0C5001457": {
+      "file": "靠的是坚持/attachments/IMG_2972.png",
+      "mediaRecordName": "4A4674CA-1178-435E-AC25-17183B7C3049",
+      "mediaFileChecksum": "AfkHGEDJBCIBhISBuJDXtBHkl2xW",
+      "noteRecordName": "85C04703-A970-4F69-B916-D29B07B09593"
+    },
+    "5A19E43B-0514-4486-80F9-2EE9D1CF9384": {
+      "file": "Notes/attachments/IMG_1375.png",
+      "mediaRecordName": "8CF9C811-F9B6-4233-84C9-E99E9418F7EB",
+      "mediaFileChecksum": "AQx1H7zfyorSbcMJx7h63OZ4+/Ls",
+      "noteRecordName": "C7321A9A-BD6C-4487-8FC9-6199824E959E"
+    },
+    "D86C4AC3-6821-42A1-B4EB-08868505292C": {
+      "file": "Notes/attachments/IMG_1377.png",
+      "mediaRecordName": "6E6DCE4A-B64B-4D22-9199-044614EDF029",
+      "mediaFileChecksum": "AQ4nfGEe7snJyLo2VVPq7m9OSBhc",
+      "noteRecordName": "C7321A9A-BD6C-4487-8FC9-6199824E959E"
+    },
+    "4F721A13-E1F0-46B9-A222-6532D22C365E": {
+      "file": "Notes/attachments/IMG_1374.jpeg",
+      "mediaRecordName": "31B5819A-047F-439F-B997-F10D9CDFB580",
+      "mediaFileChecksum": "AfOkXPPaZyus905ujpDzZFQWbV4/",
+      "noteRecordName": "3510FFB5-55FF-4BC2-9EDA-829F24C897E5"
+    },
+    "BB487CB6-6F2C-436A-8B51-CB51AED57B15": {
+      "file": "Notes/attachments/IMG_7864.png",
+      "mediaRecordName": "6E66E240-2AE1-4AC1-BA4F-84B9B5A5C867",
+      "mediaFileChecksum": "Afxiz6zZ5Yi2Nh+w3dEUYfWYgm+3",
+      "noteRecordName": "4304623D-DE13-4A5B-9B88-CF5FA3604B1B"
+    },
+    "F314B4BA-2A60-4FAB-BDCC-78251F3E9555": {
+      "file": "Notes/attachments/新备忘录.png",
+      "mediaRecordName": "9F980147-5AC1-472F-8E6C-E95BA4100466",
+      "mediaFileChecksum": "AYfdlVQdngLgA4TGS0/99vNiNyjP",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "5526A6BC-005C-439E-9310-561D3BACB44B": {
+      "file": "Notes/attachments/新备忘录 2.png",
+      "mediaRecordName": "A7325DAC-3989-49CF-B96A-00C6A1A34E4B",
+      "mediaFileChecksum": "AczANGTXyX6Tq3pU5bs5xAZAD4WI",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "7886514F-9A7D-48B6-8CE4-C915406A022F": {
+      "file": "Notes/attachments/新备忘录 3.png",
+      "mediaRecordName": "EC21D4B7-9EE2-4CDF-AA64-FF4131876EED",
+      "mediaFileChecksum": "AXYVI02CFfWaRgYTetWME8P6mQDO",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "602FC4E7-9734-462B-8BC9-F5039A2E180D": {
+      "file": "Notes/attachments/新备忘录 4.png",
+      "mediaRecordName": "58DCD8BE-9482-42F4-A791-AB23D20BA8E1",
+      "mediaFileChecksum": "AawHy0z7YghphX4mKbv53ZpDMTPA",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "4814F8CC-C043-4C30-84DE-BFA3A4C0FB40": {
+      "file": "Notes/attachments/新备忘录 5.png",
+      "mediaRecordName": "CBBBD277-8F5F-48CF-AD38-326A4D88A2DE",
+      "mediaFileChecksum": "AdNB9rL1JtiK7/cUOjAfOvTWUiMY",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "97258C47-3A80-4706-A0D2-FF91C2572A25": {
+      "file": "Notes/attachments/新备忘录 6.png",
+      "mediaRecordName": "8FB09A0D-F52B-4490-8C33-8359C05C99A0",
+      "mediaFileChecksum": "AUxWmBaq8CVr9mCi5rJ7QsCyTB0e",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "18C67A24-11E2-4F98-BBED-15DCADB210E9": {
+      "file": "Notes/attachments/新备忘录 7.png",
+      "mediaRecordName": "DD53E1D4-8770-4571-B021-C105C51180F5",
+      "mediaFileChecksum": "AdrwdiafS04jQNDZ2TYD4yOIegE0",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "51A12A91-1DB8-4990-973B-63C18A84B5C4": {
+      "file": "Notes/attachments/新备忘录 8.png",
+      "mediaRecordName": "ED1E12E8-D9D5-430F-A3E9-0985C4F00FA6",
+      "mediaFileChecksum": "AdfGrjWl97fGH+/V3JvowUaVWxPV",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "1D632AAF-3CDB-4D75-8D0A-5E9FAD41F6C5": {
+      "file": "Notes/attachments/新备忘录 9.png",
+      "mediaRecordName": "850DFDD0-1AFC-48C8-9133-BEBD173C3810",
+      "mediaFileChecksum": "AYj6qbravjZ0P+LVhTokzBLBU4BW",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "6CC000F3-3283-4C6C-802C-676E742A9312": {
+      "file": "Notes/attachments/新备忘录 10.png",
+      "mediaRecordName": "6D921047-C6E7-47F2-BB65-723D385625B0",
+      "mediaFileChecksum": "AT4nsgILln+bvVUg9x1w5iklbgAQ",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "9CDDA74A-8DFB-408E-A800-DBFBE1F2EA61": {
+      "file": "Notes/attachments/新备忘录 11.png",
+      "mediaRecordName": "9A882224-3F13-4A94-8E2E-143F0DCF7A8D",
+      "mediaFileChecksum": "AcE0gTAixHYSA8xP6+fKTgZ00tX8",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "1A14A1C9-A0A8-4036-9209-DFF5FF12F7A4": {
+      "file": "Notes/attachments/新备忘录 12.png",
+      "mediaRecordName": "11898EB7-0205-4E16-A75D-AD5AEAD96254",
+      "mediaFileChecksum": "AZ85J1OtC4hDL6MEwpbk3L8GhnNh",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "3D6C10CD-A098-4065-9AF9-8DCA262FADBC": {
+      "file": "Notes/attachments/新备忘录 13.png",
+      "mediaRecordName": "22E743B3-71C1-4D9C-909E-F429B359B81A",
+      "mediaFileChecksum": "ATEpwkAnEb05jRlcc3jg6Zjeruu/",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "543D9C39-ADA5-4FC8-B8E2-DBF9566A8469": {
+      "file": "Notes/attachments/新备忘录 14.png",
+      "mediaRecordName": "DD13AF38-781D-4B5E-A654-A5ABB7309878",
+      "mediaFileChecksum": "Aay6wAP6E4B30jOUTxhaMz72Tb8O",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "E283AF34-8FEE-4A33-8628-EAB7F38CE5E2": {
+      "file": "Notes/attachments/新备忘录 15.png",
+      "mediaRecordName": "C5C655E0-A569-42C8-9FBB-AF54429CB3D7",
+      "mediaFileChecksum": "Afwu978KKqkiRC37eR00+CCfk/1T",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "515CDFF0-0BF8-4879-92E0-73FBD828D813": {
+      "file": "Notes/attachments/除非y付抚养费vvu头发v衣服vu引发冲突放醋元.png",
+      "mediaRecordName": "83CBA858-209E-4F88-86E1-DBE4FBA45BD4",
+      "mediaFileChecksum": "AVbs2zH0YSqb5wEA76YCUeumFTLG",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "4B3A5A1D-369E-4F89-AF2A-EB3068C70C64": {
+      "file": "Notes/attachments/除非y付抚养费vvu头发v衣服vu引发冲突放醋元 2.png",
+      "mediaRecordName": "5316B23C-7B48-4A42-B578-32F4478BA8C2",
+      "mediaFileChecksum": "AeT4xI9q+uoYA/Xika4bbe/kza8w",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "C0FCE1BE-957B-4255-9DD2-8A0E109A3B31": {
+      "file": "Notes/attachments/除非y付抚养费vvu头发v衣服vu引发冲突放醋元 3.png",
+      "mediaRecordName": "6A2A7EDB-C799-4505-A5B4-D0686D991D6B",
+      "mediaFileChecksum": "Ae6kp9ksatZ7cKM9M3bps+HGV7Nz",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "005EC273-E269-4989-9F58-1FB6E09114ED": {
+      "file": "Notes/attachments/除非y付抚养费vvu头发v衣服vu引发冲突放醋元 4.png",
+      "mediaRecordName": "1C6582C6-BCE2-485D-BEAF-82582D251AAC",
+      "mediaFileChecksum": "AQGLBVgbqkgvTyn9P0eknDdofObQ",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "AD547D41-C869-4939-96CC-B7CE1B095484": {
+      "file": "Notes/attachments/新备忘录 16.png",
+      "mediaRecordName": "FF4AE31B-5B00-4AA3-A959-65BBF466B520",
+      "mediaFileChecksum": "ATVpucrgvDot1H5mYeqeIjdgcg/T",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "6295CDE0-94C8-4DE6-82E2-910A55BB34F1": {
+      "file": "Notes/attachments/新备忘录 17.png",
+      "mediaRecordName": "66FA1EF1-489A-446D-A201-4429756ACF4A",
+      "mediaFileChecksum": "AXk8O0yZGEh96tP7Xd/WPevhID1D",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "E89DF76D-EB0D-4134-84C0-4683B993FF46": {
+      "file": "Notes/attachments/新备忘录 18.png",
+      "mediaRecordName": "95A6D23C-EFB4-4EAB-836D-C85C92997CC4",
+      "mediaFileChecksum": "AQfC2mYusQBhI9GTUDCZ2sg+IIVB",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "013DA98E-4403-4CE2-8E96-E06BC049A7B0": {
+      "file": "Notes/attachments/新备忘录 19.png",
+      "mediaRecordName": "FA213CDA-61E5-47F3-B562-282D07523257",
+      "mediaFileChecksum": "AeEdLoEgbffwzkgEbkx3ctW1rWyl",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "92101D7A-00D6-4465-9CA5-9A05720BE47A": {
+      "file": "Notes/attachments/新备忘录 20.png",
+      "mediaRecordName": "EAF8CDEB-5A09-4E93-B94F-0A11CF660DFE",
+      "mediaFileChecksum": "AUu+yotZOKtElpRCKhmc4B3shuLB",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "9514CA99-D572-465D-92CF-07D86097B0A6": {
+      "file": "Notes/attachments/新备忘录 21.png",
+      "mediaRecordName": "E589F566-AD1F-4014-AE30-4F29D5BE1AE3",
+      "mediaFileChecksum": "AQMjTI39ecjzbTkk1WfwPQr9o4w2",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "B62A66DE-24DD-4789-A42F-62737C153F1F": {
+      "file": "Notes/attachments/新备忘录 22.png",
+      "mediaRecordName": "269AE815-E245-41E4-BAEA-2619C3478BF3",
+      "mediaFileChecksum": "AcNocd96PaqngNceAVQF/ncgs4RH",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "5F7BF93E-A119-45DF-B910-4DD22C92329E": {
+      "file": "Notes/attachments/新备忘录 23.png",
+      "mediaRecordName": "6070C79E-46D3-4360-BBE6-E0CE112472F2",
+      "mediaFileChecksum": "AdP7L0MBoRrTolaJ5HPIZqbbKlRm",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "DBD0E776-ED1D-4C60-9B00-4B50179B2AF9": {
+      "file": "Notes/attachments/新备忘录 24.png",
+      "mediaRecordName": "C4147701-0539-46DD-A7E7-73598A0C7BC8",
+      "mediaFileChecksum": "ASCU3sbzkX5QyZTU/ws0XM6eLNoX",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "43D51025-A5E4-4521-960F-051110732C61": {
+      "file": "Notes/attachments/新备忘录 25.png",
+      "mediaRecordName": "9E46EAB1-415F-41BD-9A70-45DECC5EE943",
+      "mediaFileChecksum": "AQ7BQ143WjS9RUrUPiSEql0sQ+RP",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "F4788457-F375-4878-9C3C-1D5E3572D829": {
+      "file": "Notes/attachments/新备忘录 26.png",
+      "mediaRecordName": "5722D162-0371-4613-9214-5C6B03355582",
+      "mediaFileChecksum": "AR5Rp6cj8EVLaSBGok6dunTZZi0I",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "2A35367D-7DA0-4D82-9752-79C35CF47F47": {
+      "file": "Notes/attachments/新备忘录 27.png",
+      "mediaRecordName": "857EACE2-CD39-4E35-9BB1-6C14D4EDCC19",
+      "mediaFileChecksum": "Aebc+1A7x2iTYMbnX7ZTZYB4As6X",
+      "noteRecordName": "BC52499C-1976-47DE-9F0A-4D6A851174AB"
+    },
+    "67962799-BEA0-4521-A1BD-9DDA50075A17": {
+      "file": "Notes/attachments/图像.png",
+      "mediaRecordName": "46680935-C732-4100-B74E-DD75580485D4",
+      "mediaFileChecksum": "ASVbgz2AGLl6M2KA+vs+o04mF0kU",
+      "noteRecordName": "962C5E9F-2AF7-4CBA-8A7C-32E5E2D6EE61"
+    },
+    "C942E045-7944-4043-A1B0-3700266AAA7B": {
+      "file": "Notes/attachments/图像 2.png",
+      "mediaRecordName": "A5A954A0-E559-48FF-AAA4-E86D733BBBB6",
+      "mediaFileChecksum": "AQ0BaCUog7ZQKak/c/7tLSS8bEQU",
+      "noteRecordName": "036B726F-564C-407A-9E5A-682E780EBA39"
+    },
+    "D777653C-0D5A-4996-81D6-1FA14DB7226E": {
+      "file": "Notes/attachments/图像 3.png",
+      "mediaRecordName": "34088053-2F06-4CEA-9351-45ECDEFA8205",
+      "mediaFileChecksum": "AQYGM4mNebear5FfSFzeOl2Ls/Ku",
+      "noteRecordName": "D8B28E6F-547A-4DAF-8742-258472F3959D"
+    },
+    "B92C8F9F-8E69-4294-B4D6-6F402A092D13": {
+      "file": "Notes/attachments/十二星座.py",
+      "mediaRecordName": "87AAAA2D-3A30-45A2-83B4-A42F85DF9C83",
+      "mediaFileChecksum": "ARP1mvTevU8mS2j6fS+B3h9JbZtd",
+      "noteRecordName": "5E79F595-E4A4-4BF9-84E5-0390CF1BE10F"
+    },
+    "5D7317BB-02DE-4448-84B3-205DCBF59E66": {
+      "file": "Notes/attachments/截屏 2022-06-30 06.18.png",
+      "mediaRecordName": "2C2A2233-6942-43CC-94ED-27142EC87AAE",
+      "mediaFileChecksum": "AVS7utJkymXwGAhMDfMBNYBw5Tjz",
+      "noteRecordName": "5E79F595-E4A4-4BF9-84E5-0390CF1BE10F"
+    },
+    "3F97E0E2-3CAC-422B-898C-9802DD4DF356": {
+      "file": "Notes/attachments/十二星座 2.py",
+      "mediaRecordName": "65F1E09A-91DE-4968-ABA6-825E22BB892B",
+      "mediaFileChecksum": "ARP1mvTevU8mS2j6fS+B3h9JbZtd",
+      "noteRecordName": "5E79F595-E4A4-4BF9-84E5-0390CF1BE10F"
+    },
+    "773823B9-3227-47C1-AFD1-15D442D66212": {
+      "file": "Notes/attachments/发往微信.jpeg",
+      "mediaRecordName": "4DDF940C-C1C5-4DD6-B6E6-7CA06BA52969",
+      "mediaFileChecksum": "AWkVTa3vkwUjppSSddSJKFjeLyI5",
+      "noteRecordName": "234e6d96-d880-4102-b8f6-833ff8c48c48"
+    },
+    "79D0A9F1-A5CB-4A85-8D3C-BE7C8B2729BA": {
+      "file": "Notes/attachments/IMG_20261105092950.jpeg",
+      "mediaRecordName": "1B9F4442-867D-4A83-A2AF-1185A6EDDC9D",
+      "mediaFileChecksum": "Ae5H2N25jm9Rpa1XspoiCm5Jc9Ro",
+      "noteRecordName": "d7e86066-19e0-4467-9271-95d52081d3af"
+    },
+    "6283C26E-49C6-448A-847B-F5257E7F630F": {
+      "file": "Notes/attachments/IMG_20261105092950 2.jpeg",
+      "mediaRecordName": "3DA60ECF-4029-45B6-8605-510D208F93FA",
+      "mediaFileChecksum": "Ae5H2N25jm9Rpa1XspoiCm5Jc9Ro",
+      "noteRecordName": "d7e86066-19e0-4467-9271-95d52081d3af"
+    },
+    "07D3199D-CC44-404F-A41D-504FBF38CB54": {
+      "file": "Notes/attachments/IMG_20261105140349.jpeg",
+      "mediaRecordName": "2FFD394F-33BD-4171-AD76-82915129F843",
+      "mediaFileChecksum": "Ae1BEJ62tAl211awSTy08OU++Dq7",
+      "noteRecordName": "d7e86066-19e0-4467-9271-95d52081d3af"
+    },
+    "EE83FF9F-D257-4CE6-90CC-A4EA5F753E0B": {
+      "file": "Notes/attachments/IMG_20261105092950 3.jpeg",
+      "mediaRecordName": "76CCED98-B054-4C05-B71B-4BC4F06276A6",
+      "mediaFileChecksum": "Ae5H2N25jm9Rpa1XspoiCm5Jc9Ro",
+      "noteRecordName": "5439C17F-DBB2-4571-BCA1-B52D139F19C0"
+    },
+    "6BD568BA-95C7-4DE6-93F2-A4F19D891465": {
+      "file": "Notes/attachments/IMG_20261105134520.jpeg",
+      "mediaRecordName": "49B93E5E-AE0D-4A23-A75E-2F2CC95D9C3D",
+      "mediaFileChecksum": "AdUn5oSzG8sr/zrPbNos1S6olyPB",
+      "noteRecordName": "5439C17F-DBB2-4571-BCA1-B52D139F19C0"
+    },
+    "723B695F-E624-4648-A332-E0617CE5188E": {
+      "file": "Notes/attachments/IMG_20261105140349 2.jpeg",
+      "mediaRecordName": "B41C1B9E-9947-4DBD-827E-875FBF74AEAF",
+      "mediaFileChecksum": "Ae1BEJ62tAl211awSTy08OU++Dq7",
+      "noteRecordName": "5439C17F-DBB2-4571-BCA1-B52D139F19C0"
+    },
+    "179C99C3-E9BE-4C7D-86CF-55471BBFA24F": {
+      "file": "Notes/attachments/IMG_WeChat_Photo_6649.jpeg",
+      "mediaRecordName": "9BA3289A-B442-4404-B6BE-9532F867136B",
+      "mediaFileChecksum": "AfOkXPPaZyus905ujpDzZFQWbV4/",
+      "noteRecordName": "5439C17F-DBB2-4571-BCA1-B52D139F19C0"
+    },
+    "F0C26BC0-A6C6-4CB0-98AD-56C7BFF6028E": {
+      "file": "Notes/attachments/IMG_20261105092950 4.jpeg",
+      "mediaRecordName": "53883839-4171-4C75-9800-2473D0FB5029",
+      "mediaFileChecksum": "Ae5H2N25jm9Rpa1XspoiCm5Jc9Ro",
+      "noteRecordName": "53b55621-b637-4d8d-8033-2f922d55d492"
+    },
+    "EEDECF12-6214-4DA7-8265-FCCA7B4AAFC3": {
+      "file": "Notes/attachments/IMG_20261105134520 2.jpeg",
+      "mediaRecordName": "4283E8CD-88A6-486C-ADBC-E5A1F3AC94F8",
+      "mediaFileChecksum": "AdUn5oSzG8sr/zrPbNos1S6olyPB",
+      "noteRecordName": "53b55621-b637-4d8d-8033-2f922d55d492"
+    },
+    "18887318-7717-4295-ACDA-D9D80FF58906": {
+      "file": "Notes/attachments/IMG_20261105092950 5.jpeg",
+      "mediaRecordName": "3D396DD9-DCC7-48E3-BB54-52814F24078E",
+      "mediaFileChecksum": "Ae5H2N25jm9Rpa1XspoiCm5Jc9Ro",
+      "noteRecordName": "53b55621-b637-4d8d-8033-2f922d55d492"
+    },
+    "24AADCBD-A4E6-4942-AB45-D4AB370D6320": {
+      "file": "Notes/attachments/IMG_20261105140349 3.jpeg",
+      "mediaRecordName": "26CB0799-6B79-4D58-9AE8-2B64935A8E98",
+      "mediaFileChecksum": "Ae1BEJ62tAl211awSTy08OU++Dq7",
+      "noteRecordName": "53b55621-b637-4d8d-8033-2f922d55d492"
+    },
+    "65E175C6-0CA1-427A-A690-38C4F1484447": {
+      "file": "Notes/attachments/Attachment.txt",
+      "mediaRecordName": "2B597DCA-E0AD-488B-AF84-1F37DA934516",
+      "mediaFileChecksum": "AUC/h+D1123FnxK0b2y6gzeNe2Se",
+      "noteRecordName": "17A76329-1B6E-4AE3-830D-FCAB14DA0795"
+    },
+    "6AE25D02-56F7-47E2-A470-A68199B43D61": {
+      "file": "Notes/attachments/IMG_20261106090229.png",
+      "mediaRecordName": "69433548-2616-41FE-9571-DC23C46F3D5F",
+      "mediaFileChecksum": "ARLeZct9uFXIklk2+euGW5Q3MbdY",
+      "noteRecordName": "5439C17F-DBB2-4571-BCA1-B52D139F19C0"
+    }
+  },
+  "tableAttachments": {
+    "342B65DF-9D57-4CB8-9627-26AA8451FF74": {
+      "noteRecordName": "D9D91190-5851-478D-9EF8-9D34674F5BCC"
+    },
+    "6727874F-666F-48FC-BCA0-7EABB0958792": {
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "616EA0A6-817F-4C84-A0DD-F6A4C91DD3B9": {
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "47EFAB41-51E7-4AE1-92E0-A1D2E81C907A": {
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "D093AA15-2E24-4D8E-832F-248AD8E0D835": {
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "9E2BAD7F-B073-4B5C-9B71-F3C9F2569182": {
+      "noteRecordName": "AD83FF28-BEA1-4032-BDD3-BCBEC1E8A8A3"
+    },
+    "0D51EB8F-7BCE-4DDF-8F7B-9763C6D5D3A2": {
+      "noteRecordName": "0C68259B-86C3-448A-B2C7-077787F65F6E"
+    },
+    "7C5D0DE1-F4E5-4505-AB58-7FCB2B394615": {
+      "noteRecordName": "285D5941-CC88-48F2-9CFE-EC16860B7A32"
+    },
+    "E9FC6F41-2E25-4C55-8393-914BC0087815": {
+      "noteRecordName": "285D5941-CC88-48F2-9CFE-EC16860B7A32"
+    },
+    "BEECAA26-5B1F-46D9-AA68-9EBF59ADF88D": {
+      "noteRecordName": "285D5941-CC88-48F2-9CFE-EC16860B7A32"
+    },
+    "8717DAD3-F5F0-4910-9D21-74FA374957BF": {
+      "noteRecordName": "EFCC7A7F-31DA-4EE6-96FF-0A274E915544"
+    },
+    "574857D7-DB79-460E-89C3-C1BCBFA4074C": {
+      "noteRecordName": "EFCC7A7F-31DA-4EE6-96FF-0A274E915544"
+    },
+    "D46F2B6D-6176-4656-87EB-95BC4A33D425": {
+      "noteRecordName": "EFCC7A7F-31DA-4EE6-96FF-0A274E915544"
+    },
+    "2D53417A-0121-4453-A5C8-1155FA523C75": {
+      "noteRecordName": "EFCC7A7F-31DA-4EE6-96FF-0A274E915544"
+    },
+    "418909CF-27A0-43C5-96C3-BC317B189B1E": {
+      "noteRecordName": "87AA0276-E03F-400D-AB0F-F8D0E67EA631"
+    }
+  },
+  "trashed": {},
+  "layoutVersion": 3,
+  "generator": "icloud-md 0.6.2"
+}

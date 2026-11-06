@@ -83,5 +83,31 @@
     ],
     "ocrText": "使用密钥登录 iPhone、iPad 或 Android 设备 apple.com 的通行密钥 使用手机或平板电脑扫描此 QR 码 选择其他通行密钥 取消 继续 通过 iPhone 登录 需要安装 iOS 17 或更高版本的设备",
     "summary": "电脑屏幕上的 apple.com『使用密钥登录』通行密钥 QR 二维码弹窗界面"
+  },
+  "NoteBridge_98771.png": {
+    "fileName": "NoteBridge_98771.png",
+    "capturedAt": "2026/11/6 13:48:19",
+    "category": "微信配文图片",
+    "subType": "Photo",
+    "isScreenshot": false,
+    "isFavorite": false,
+    "tags": [
+      "测试图片桥接"
+    ],
+    "ocrText": "测试图片桥接",
+    "summary": "微信发图（配文：测试图片桥接）"
+  },
+  "IMG_20261106090229.png": {
+    "fileName": "IMG_20261106090229.png",
+    "capturedAt": "2026/11/6 17:02:32",
+    "category": "微信配文图片",
+    "subType": "Photo",
+    "isScreenshot": false,
+    "isFavorite": false,
+    "tags": [
+      "[图片]"
+    ],
+    "ocrText": "[图片]",
+    "summary": "微信发图（配文：[图片]）"
   }
 }

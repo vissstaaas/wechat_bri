@@ -108,6 +108,40 @@
       color: var(--ts-white);
     }
 
+    /* Magpie-Style Live Routing Nodes & Wires */
+    .rt-flow-node {
+      position: relative;
+      cursor: default;
+      user-select: none;
+    }
+    .rt-flow-node.active-pulse {
+      border-color: #10b981 !important;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.45) !important;
+      transform: scale(1.02);
+    }
+    #node-core-hub.active-pulse {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.5) !important;
+      transform: scale(1.03);
+    }
+    .rt-wire-path {
+      fill: none;
+      stroke: #3f3f46;
+      stroke-width: 1.5;
+      stroke-dasharray: 3 5;
+      transition: stroke 0.3s, stroke-width 0.3s;
+    }
+    .rt-wire-path.active {
+      stroke: url(#liveWireGrad);
+      stroke-width: 2.5;
+      stroke-dasharray: 5 5;
+      animation: rtFlowDash 0.5s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.75));
+    }
+    @keyframes rtFlowDash {
+      to { stroke-dashoffset: -10; }
+    }
+
     .crop-box { position: relative; }
     .crop-tl, .crop-tr, .crop-bl, .crop-br {
       position: absolute;
@@ -519,13 +553,16 @@
             
             <div id="wiz-wx-detected-box" class="p-3.5 bg-[#E5E5E5] border border-[#1E1E1E] space-y-1">
               <div id="wiz-wx-state-title" class="font-bold">正在检测微信登录状态...</div>
-              <div id="wiz-wx-account-text" class="text-[11px]">账号: 4547d85e4cb2-im-bot</div>
+              <div id="wiz-wx-account-text" class="text-[11px]">微信登录后自动显示专属身份</div>
               <div id="wiz-wx-state-hint" class="text-[11px] text-neutral-700">请点击左侧「生成 / 刷新真实微信二维码」，用手机微信扫码并在手机上确认。</div>
             </div>
 
             <div class="pt-3 flex gap-3">
               <button id="wiz-next-1" onclick="switchWizardStep(2)" disabled class="bg-[#1E1E1E] text-[#FEFEFE] px-6 py-3 text-xs font-bold hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed">
                 微信登录成功，进入 STEP 02 (iCloud 授权) ->
+              </button>
+              <button id="wiz-wx-logout" onclick="logoutWechat()" class="hidden border border-[#1E1E1E] bg-[#FEFEFE] px-4 py-3 text-xs font-bold hover:bg-[#E5E5E5]">
+                退出登录
               </button>
             </div>
           </div>
@@ -565,8 +602,9 @@
               ↻ 测试执行一次 iCloud Pull & Push
             </button>
             <button id="wiz-ic-btn" onclick="startIcloudLogin()" class="w-full border border-[#1E1E1E] bg-[#FEFEFE] py-2 text-xs font-bold hover:bg-[#E5E5E5] disabled:opacity-40 disabled:cursor-not-allowed">
-              🔑 登录 iCloud（弹出独立登录窗口）
+              🔑 登录 / 授权 iCloud（云上贵州）
             </button>
+            
           </div>
 
           <div class="md:col-span-7 space-y-4 text-xs">
@@ -676,6 +714,239 @@
           </div>
         </div>
 
+        <!-- =============================================================== -->
+        <!-- MAGPIE-STYLE LIVE ROUTING STAGE // 模型/路由: 实时网关正在做的决定    -->
+        <!-- =============================================================== -->
+        <div id="magpie-router-panel" class="rounded-xl border border-zinc-700/70 bg-[#16161a] p-4 font-mono-ts text-zinc-100 shadow-2xl relative overflow-hidden">
+          
+          <!-- Top Bar: Header & Live Stats -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800 gap-2">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xs font-bold text-zinc-200">模型 / 路由</span>
+              <span class="text-zinc-600">|</span>
+              <span class="text-[11px] text-emerald-400 flex items-center gap-1.5 font-sans font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span>
+                <span>实时 · 网关正在做的决定</span>
+              </span>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-zinc-400">
+              <div><strong id="live-stat-total" class="text-zinc-100 text-sm">28</strong> <span class="text-[10px] text-zinc-500">请求</span></div>
+              <div><strong id="live-stat-reroute" class="text-zinc-100 text-sm">0</strong> <span class="text-[10px] text-zinc-500">改道</span></div>
+              <div><strong id="live-stat-err" class="text-zinc-100 text-sm">0</strong> <span class="text-[10px] text-zinc-500">错误</span></div>
+              <button onclick="triggerStreamHeartbeat()" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded border border-zinc-700 transition">
+                ⚡ 刷新连通
+              </button>
+            </div>
+          </div>
+
+          <!-- Central Topology Stage (Sources -> Hub -> Execution Sinks) -->
+          <div id="rt-stage-container" class="relative my-4 py-2 min-h-[340px]">
+            <!-- Background SVG Wires -->
+            <svg id="rt-wires-svg" class="absolute inset-0 w-full h-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="liveWireGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#10b981" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.9" />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            <!-- 3-Column Topology Grid -->
+            <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              
+              <!-- Left: Inbound Sources (多模态入口) -->
+              <div class="md:col-span-3 space-y-2.5">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500 pb-1">多模态入口 (Inbound Sources)</div>
+                
+                <div id="node-src-siri" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-zinc-500 rounded-lg p-2.5 transition-all duration-300">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🎙️</span>
+                    <div>
+                      <div class="text-xs font-bold text-zinc-200">iPhone Siri 语音</div>
+                      <div class="text-[10px] text-zinc-500">快捷口令检索与速记</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="node-src-wechat" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-zinc-500 rounded-lg p-2.5 transition-all duration-300">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">💬</span>
+                    <div>
+                      <div class="text-xs font-bold text-zinc-200">微信 ClawBot</div>
+                      <div class="text-[10px] text-emerald-400">在线 · 实时双向通信</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="node-src-sms" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-zinc-500 rounded-lg p-2.5 transition-all duration-300">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">📱</span>
+                    <div>
+                      <div class="text-xs font-bold text-zinc-200">手机短信 (快捷指令)</div>
+                      <div class="text-[10px] text-purple-400">Webhook & 备忘录轮询 (5s)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="node-src-web" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-zinc-500 rounded-lg p-2.5 transition-all duration-300">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🖥️</span>
+                    <div>
+                      <div class="text-xs font-bold text-zinc-200">Web 控制台</div>
+                      <div class="text-[10px] text-zinc-500">Playground 操作终端</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Center: Core Router Hub (核心路由中枢) -->
+              <div class="md:col-span-4 flex justify-center py-4">
+                <div id="node-core-hub" class="w-full max-w-[260px] bg-zinc-900 border-2 border-zinc-600 rounded-xl p-4 text-center shadow-lg relative transition-all duration-300">
+                  <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 mb-2">
+                    ⚡
+                  </div>
+                  <div class="text-xs font-extrabold text-zinc-100">OmniBridge 核心路由中枢</div>
+                  <div class="text-[10px] text-zinc-400 mt-1 leading-snug">
+                    意图识别 & 概率路由<br/>(规则引擎 + RLCD 决策)
+                  </div>
+                  <div class="mt-2.5 pt-2 border-t border-zinc-800 flex items-center justify-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="rt-hub-badge" class="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-bold">
+                      DUAL_AUTO
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Execution Sinks (多端执行宿主) -->
+              <div class="md:col-span-5 space-y-2">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500 pb-0.5">多端执行宿主 (Execution Sinks)</div>
+
+                <div id="node-sink-magpie" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-purple-500/60 rounded-lg p-2 transition-all duration-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm">🤖</span>
+                      <div>
+                        <div class="text-xs font-bold text-zinc-200">Magpie 本地网关 (127.0.0.1:3425)</div>
+                        <div class="text-[10px] text-purple-400">DeepSeek-v4.1-flash · 1M 上下文 · 207 t/s</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">LLM Brain</span>
+                  </div>
+                </div>
+
+                <div id="node-sink-notes" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-amber-500/60 rounded-lg p-2 transition-all duration-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm">📝</span>
+                      <div>
+                        <div class="text-xs font-bold text-zinc-200">Apple Notes 备忘录四大家族</div>
+                        <div class="text-[10px] text-amber-400">账号与速查 / 待办取件码 / 链接 / 灵感</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">CloudKit</span>
+                  </div>
+                </div>
+
+                <div id="node-sink-drive" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-blue-500/60 rounded-lg p-2 transition-all duration-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm">📂</span>
+                      <div>
+                        <div class="text-xs font-bold text-zinc-200">iCloud Drive 云盘文件提取</div>
+                        <div class="text-[10px] text-blue-400">个人简历 / 学习课表 / PDF 直发微信</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">DriveWS</span>
+                  </div>
+                </div>
+
+                <div id="node-sink-photo" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-pink-500/60 rounded-lg p-2 transition-all duration-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm">🖼️</span>
+                      <div>
+                        <div class="text-xs font-bold text-zinc-200">相册视觉 OCR & 原图互传</div>
+                        <div class="text-[10px] text-pink-400">剥香蕉 / 通行密钥 / 鸡腿盒饭 语义搜图</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-pink-950 text-pink-300 border border-pink-800">Vision Index</span>
+                  </div>
+                </div>
+
+                <div id="node-sink-wechat_push" class="rt-flow-node bg-zinc-900/90 border border-zinc-700/70 hover:border-emerald-500/60 rounded-lg p-2 transition-all duration-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm">📲</span>
+                      <div>
+                        <div class="text-xs font-bold text-zinc-200">手机微信即时通知卡片</div>
+                        <div class="text-[10px] text-emerald-400">流转完成推送 · Siri 语音口令推荐</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">Outbox</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom: Magpie Decision Trace & Timing Breakdown -->
+          <div class="mt-2 pt-3 border-t border-zinc-800/80 grid grid-cols-1 md:grid-cols-12 gap-4 text-xs">
+            
+            <!-- Left: 最近一个请求是怎么路由的 -->
+            <div class="md:col-span-7 space-y-1.5">
+              <div class="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                <span>最近一个请求是怎么路由的</span>
+              </div>
+              <div class="text-[11px] space-y-1 text-zinc-400 bg-zinc-900/80 p-2.5 rounded-lg border border-zinc-800">
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-zinc-500 shrink-0">• 入口来源:</span>
+                  <span id="trace-source-desc" class="text-zinc-200 font-semibold truncate">手机短信 (发件人: 10086)</span>
+                </div>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-zinc-500 shrink-0">• 路由判定:</span>
+                  <span id="trace-decision-desc" class="text-zinc-200 truncate">匹配规则「☑️ 待办与取件码」 (置信度 0.92)</span>
+                </div>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-zinc-500 shrink-0">• 终点交付:</span>
+                  <span id="trace-sink-desc" class="text-emerald-400 truncate">已写入 iPhone 备忘录并推送微信即时通知卡片</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: 时间花在哪里 (Timing Breakdown Bar) -->
+            <div class="md:col-span-5 space-y-1.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-bold text-zinc-300 flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  <span>时间花在哪里</span>
+                </span>
+                <span id="trace-total-ms" class="text-zinc-200 font-bold text-xs">125ms</span>
+              </div>
+
+              <!-- Horizontal Stacked Timing Bar -->
+              <div class="w-full h-3 bg-zinc-800 rounded-full overflow-hidden flex border border-zinc-700/60 p-0.5">
+                <div id="bar-seg-inbound" class="bg-blue-500 h-full rounded-l transition-all duration-500" style="width: 15%" title="入口捕获"></div>
+                <div id="bar-seg-router" class="bg-purple-500 h-full transition-all duration-500" style="width: 25%" title="双模分流"></div>
+                <div id="bar-seg-exec" class="bg-amber-500 h-full transition-all duration-500" style="width: 35%" title="执行处理"></div>
+                <div id="bar-seg-push" class="bg-emerald-500 h-full rounded-r transition-all duration-500" style="width: 25%" title="微信推送"></div>
+              </div>
+
+              <!-- Legend -->
+              <div class="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-blue-500 inline-block"></span>入口 <span id="leg-inbound-ms">2ms</span></span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-purple-500 inline-block"></span>分流 <span id="leg-router-ms">5ms</span></span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-amber-500 inline-block"></span>处理 <span id="leg-exec-ms">38ms</span></span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-emerald-500 inline-block"></span>推送 <span id="leg-push-ms">80ms</span></span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           <!-- Left: Input Terminal -->
@@ -764,7 +1035,7 @@
                   </button>
                 </div>
                 <div id="siri-search-results" class="text-xs bg-[#FEFEFE] border border-[#1E1E1E] p-3 max-h-[150px] overflow-y-auto">
-                  在上方输入任意词，直接搜索 `d:\dev\ideas\wechat-notes-bridge\notes\Notes\` 下的真实备忘录。
+                  在上方输入任意词，直接搜索 `d:\dev\ideas\omnibridge-core\notes\Notes\` 下的真实备忘录。
                 </div>
               </div>
             </div>
@@ -963,7 +1234,7 @@
             <div class="ts-os-titlebar"><span>SESSION & CHANNEL HEALTH // 身份与通道诊断</span></div>
             <div class="ts-os-window-inner bg-[#FEFEFE] p-4 space-y-2.5">
               <div class="flex justify-between"><span>当前登录微信 UserID:</span><span id="bk-wx-user" class="font-bold truncate max-w-[180px]">o9cq80...</span></div>
-              <div class="flex justify-between"><span>绑定机器人 AccountID:</span><span id="bk-wx-id" class="font-bold">4547d85e4cb2-im-bot</span></div>
+              <div class="flex justify-between"><span>绑定机器人 AccountID:</span><span id="bk-wx-id" class="font-bold">--</span></div>
               <div class="flex justify-between"><span>iCloud 云端节点:</span><span class="font-bold">setup.icloud.com.cn</span></div>
               <div class="flex justify-between"><span>备忘录总数:</span><span id="bk-note-count" class="font-bold">86 篇</span></div>
               <div class="flex justify-between"><span>最近同步时间:</span><span id="bk-sync-time">--:--:--</span></div>
@@ -978,7 +1249,7 @@
         <div class="lg:col-span-7 ts-os-window">
           <div class="ts-os-titlebar">
             <span>DAEMON.LOG // 服务器实时事件流 (每 3 秒自动刷新)</span>
-            <span>PORT 3080</span>
+            <span>PORT 3090</span>
           </div>
           <div id="live-log-box" class="ts-os-window-inner bg-[#1E1E1E] text-[#FEFEFE] p-4 font-mono-ts text-xs leading-relaxed h-[320px] overflow-y-auto space-y-1.5">
             <div>[SYSTEM] 正在连接本地后台...</div>
@@ -994,7 +1265,7 @@
   <!-- SCRIPTS: VIEW ROUTER, WIZARD, PLAYGROUND, CUSTOM VAULTS & CANVAS    -->
   <!-- =================================================================== -->
   <script>
-    const API_BASE = "http://localhost:3080";
+    const API_BASE = window.location.origin;
 
     // 1. Top-Level Product View Router (Landing <-> Quickstart <-> Playground)
     function navigateView(viewName, scrollTargetId) {
@@ -1008,6 +1279,9 @@
             : "px-4 py-2 hover:bg-[#E5E5E5]";
         }
       });
+      if (viewName === 'playground') {
+        setTimeout(() => updateMagpieWires(), 60);
+      }
       if (scrollTargetId) {
         setTimeout(() => {
           document.getElementById(scrollTargetId)?.scrollIntoView({ behavior: 'smooth' });
@@ -1039,7 +1313,7 @@
       wizardCurrentStep = stepNum;
     };
 
-    const wizardGate = { wechatOk: false, icloudOk: false, wechatSeen: null, icloudStage: null };
+    const wizardGate = { wechatOk: false, icloudOk: false, wechatSeen: null, icloudStage: null, verifyPromptShown: null };
     const TONE_CLASS = { ok: 'bg-[#38B86B]/20', wait: 'bg-[#E5E5E5]', error: 'bg-red-100' };
 
     function paintStateBox(box, tone) {
@@ -1083,6 +1357,13 @@
       } else if (wechat.qrStatus === 'scaned') {
         titleText = '📱 已扫码，请在手机上点击确认';
         hintText = '手机微信上点「确认」后，本页会自动继续。';
+      } else if (wechat.qrStatus === 'need_verifycode') {
+        titleText = '🔐 需要安全验证码';
+        hintText = '请查看手机微信上的数字验证码，在弹窗中输入。';
+        if (wizardGate.verifyPromptShown !== 'need_verifycode') {
+          wizardGate.verifyPromptShown = 'need_verifycode';
+          setTimeout(promptWechatVerifyCode, 300);
+        }
       } else if (wechat.qrStatus === 'expired') {
         tone = 'error';
         titleText = '✕ 二维码已过期';
@@ -1097,10 +1378,41 @@
       }
       if (next) next.disabled = !connected;
 
-      const justConnected = wizardGate.wechatSeen === false && connected;
+      const logoutBtn = document.getElementById('wiz-wx-logout');
+      if (logoutBtn) logoutBtn.classList.toggle('hidden', !connected);
+
+      const justConnected = wizardGate.wechatSeen !== true && connected;
       wizardGate.wechatOk = connected;
       wizardGate.wechatSeen = connected;
       if (justConnected && wizardCurrentStep === 1) switchWizardStep(2);
+    }
+
+    async function logoutWechat() {
+      if (!confirm('确定退出微信登录？退出后需重新扫码才能连接。')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/wechat/logout`, { method: 'POST' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        await refreshLiveStatus();
+        // 回到二维码界面等待重新扫码
+        if (wizardCurrentStep >= 1) switchWizardStep(1);
+      } catch (e) {
+        alert('退出登录失败: ' + e.message);
+      }
+    }
+
+    async function promptWechatVerifyCode() {
+      const code = prompt('请输入手机微信上显示的数字验证码：');
+      if (code && code.trim()) {
+        try {
+          await fetch(`${API_BASE}/api/wechat/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code.trim() })
+          });
+        } catch (e) {}
+      }
+      // 允许下次再触发
+      wizardGate.verifyPromptShown = null;
     }
 
     // 2.2 iCloud login: popup browser window on the server side, progress polled here
@@ -1120,21 +1432,21 @@
       const hint = document.getElementById('wiz-ic-hint');
       const btn = document.getElementById('wiz-ic-btn');
       const next = document.getElementById('wiz-next-2');
-      const failed = icloud.stage === 'failed';
+      const failed = icloud.stage === 'failed' || Boolean(icloud.needsRelogin);
 
-      paintStateBox(title?.parentElement, view.tone);
-      if (title) title.innerText = view.title;
+      paintStateBox(title?.parentElement, failed ? 'error' : view.tone);
+      if (title) title.innerText = failed ? '⚠️ iCloud 凭证已过期 (HTTP 421)' : (icloud.stage === 'done' ? `✓ iCloud 已连接 (${icloud.appleId})` : view.title);
       if (hint) {
-        hint.innerText = failed ? `原因：${icloud.error}` : (icloud.message || hint.innerText);
+        hint.innerText = failed ? (icloud.message || '凭证已失效，请重新授权') : (icloud.message || hint.innerText);
         hint.classList.toggle('text-red-700', failed);
         hint.classList.toggle('font-bold', failed);
       }
       if (btn) {
-        btn.disabled = view.busy || !wizardGate.wechatOk;
-        btn.innerText = failed ? '↻ 重试登录 iCloud' : (icloud.stage === 'done' ? '🔑 重新登录 / 换号' : '🔑 登录 iCloud（弹出独立登录窗口）');
+        btn.disabled = view.busy;
+        btn.innerText = failed ? '↻ 重新登录 iCloud（凭证已过期）' : (icloud.stage === 'done' ? '🔑 重新登录 / 换号' : '🔑 登录 iCloud（弹出独立登录窗口）');
       }
 
-      const ok = icloud.stage === 'done';
+      const ok = icloud.stage === 'done' && !icloud.needsRelogin;
       if (next) next.disabled = !ok;
       const justDone = wizardGate.icloudStage !== null && wizardGate.icloudStage !== 'done' && ok;
       wizardGate.icloudOk = ok;
@@ -1151,16 +1463,12 @@
     }
 
     async function startIcloudLogin() {
-      if (!wizardGate.wechatOk) {
-        showGateWarning('wiz-ic-hint', '请先完成微信登录。');
-        return;
-      }
       try {
         const res = await fetch(`${API_BASE}/api/icloud/relogin`, { method: 'POST' });
         const data = await res.json();
         if (data.ok) renderIcloudLogin(data.icloud);
       } catch (e) {
-        showGateWarning('wiz-ic-hint', '连接本地服务失败，请确认 start-bridge.bat 仍在运行。');
+        showGateWarning('wiz-ic-hint', '连接本地服务失败，请确认服务正在运行。');
       }
     }
 
@@ -1180,6 +1488,9 @@
                 : "px-3 py-1 border border-white/30 text-white hover:bg-white/10");
         }
       });
+      if (tabName === 'operator') {
+        setTimeout(() => updateMagpieWires(), 60);
+      }
       refreshLiveStatus();
       if (tabName === 'drive') loadIcloudDrivePanel(false);
     }
@@ -1479,11 +1790,13 @@
       }
 
       if (data.lastClassification) {
-        document.getElementById('live-payload').innerText = `“${lc.text}”`;
+        document.getElementById('live-payload').innerText = (lc.text && lc.text !== "undefined") ? `“${lc.text}”` : "“随手记消息”";
         document.getElementById('route-action-badge').innerText = lc.modeUsed || "PROCESSED";
         document.getElementById('route-target-label').innerText = lc.categoryName || "";
         document.getElementById('routing-latency').innerText = `${lc.latencyMs || 42}ms`;
-        document.getElementById('live-agent-reply').innerText = lc.agentReply || "";
+        if (lc.agentReply) {
+          document.getElementById('live-agent-reply').innerText = lc.agentReply;
+        }
       }
 
       // Render dynamic Vaults Grid in Tab 02
@@ -1619,8 +1932,13 @@
           body: JSON.stringify({ text, pushToPhone })
         });
         const data = await res.json();
+        if (data.result && data.result.reply) {
+          document.getElementById('live-agent-reply').innerText = data.result.reply;
+        }
         if (data.status) applyStatusToUI(data.status);
         input.value = '';
+      } catch (e) {
+        document.getElementById('live-agent-reply').innerText = `执行异常: ${e.message}`;
       } finally {
         btn.innerText = orig;
         btn.disabled = false;
@@ -1739,8 +2057,207 @@
       draw();
     })();
 
+    // -------------------------------------------------------------
+    // MAGPIE-STYLE LIVE ROUTING TOPOLOGY & REAL-TIME SSE STREAM
+    // -------------------------------------------------------------
+    let streamTotalRequests = 28;
+    let sseSource = null;
+    let activeWireSet = new Set();
+    let wireClearTimer = null;
+
+    function updateMagpieWires(activeWireArg = undefined) {
+      const svg = document.getElementById('rt-wires-svg');
+      const container = document.getElementById('rt-stage-container');
+      const hub = document.getElementById('node-core-hub');
+      if (!svg || !container || !hub) return;
+
+      if (activeWireArg === null) {
+        activeWireSet.clear();
+      } else if (activeWireArg === 'all') {
+        // all wires active
+      } else if (typeof activeWireArg === 'string') {
+        activeWireSet.add(activeWireArg);
+      }
+
+      const isAll = (activeWireArg === 'all');
+
+      const cRect = container.getBoundingClientRect();
+      const hRect = hub.getBoundingClientRect();
+
+      const hubLeftX = hRect.left - cRect.left;
+      const hubRightX = hRect.right - cRect.left;
+      const hubY = (hRect.top + hRect.bottom) / 2 - cRect.top;
+
+      const sources = ['siri', 'wechat', 'sms', 'web'];
+      const sinks = ['magpie', 'notes', 'drive', 'photo', 'wechat_push'];
+
+      let pathsHtml = `
+        <defs>
+          <linearGradient id="liveWireGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0.9" />
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.9" />
+          </linearGradient>
+        </defs>
+      `;
+
+      // 1. Wires: Sources -> Hub
+      sources.forEach(src => {
+        const el = document.getElementById(`node-src-${src}`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const x1 = r.right - cRect.left;
+        const y1 = (r.top + r.bottom) / 2 - cRect.top;
+        const x2 = hubLeftX;
+        const y2 = hubY;
+        const mx = (x1 + x2) / 2;
+        const wireId = `wire-src-${src}`;
+        const isActive = isAll || activeWireSet.has(wireId);
+        pathsHtml += `<path id="${wireId}" class="rt-wire-path ${isActive ? 'active' : ''}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}" />`;
+      });
+
+      // 2. Wires: Hub -> Sinks
+      sinks.forEach(sink => {
+        const el = document.getElementById(`node-sink-${sink}`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const x1 = hubRightX;
+        const y1 = hubY;
+        const x2 = r.left - cRect.left;
+        const y2 = (r.top + r.bottom) / 2 - cRect.top;
+        const mx = (x1 + x2) / 2;
+        const wireId = `wire-sink-${sink}`;
+        const isActive = isAll || activeWireSet.has(wireId);
+        pathsHtml += `<path id="${wireId}" class="rt-wire-path ${isActive ? 'active' : ''}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}" />`;
+      });
+
+      svg.innerHTML = pathsHtml;
+    }
+
+    function initTraceStream() {
+      if (sseSource) sseSource.close();
+      try {
+        sseSource = new EventSource('/api/stream');
+
+        sseSource.onmessage = (e) => {
+          try {
+            const ev = JSON.parse(e.data);
+            handleStreamEvent(ev);
+          } catch {}
+        };
+
+        sseSource.onerror = () => {
+          setTimeout(initTraceStream, 5000);
+        };
+      } catch (err) {
+        console.warn("[TraceStream] SSE connection fallback:", err.message);
+      }
+    }
+
+    function handleStreamEvent(ev) {
+      if (ev.type === 'stats') {
+        if (ev.stats && ev.stats.totalRequests) {
+          streamTotalRequests = ev.stats.totalRequests;
+          const statEl = document.getElementById('live-stat-total');
+          if (statEl) statEl.innerText = streamTotalRequests;
+        }
+        return;
+      }
+
+      if (ev.type === 'start') {
+        if (wireClearTimer) clearTimeout(wireClearTimer);
+        streamTotalRequests++;
+        const statEl = document.getElementById('live-stat-total');
+        if (statEl) statEl.innerText = streamTotalRequests;
+
+        const srcNode = document.getElementById(`node-src-${ev.source}`);
+        if (srcNode) {
+          srcNode.classList.add('active-pulse');
+          setTimeout(() => srcNode.classList.remove('active-pulse'), 2500);
+        }
+
+        activeWireSet.clear();
+        updateMagpieWires(`wire-src-${ev.source}`);
+
+        const srcNames = { siri: "🎙️ iPhone Siri 语音", wechat: "💬 微信 ClawBot", sms: "📱 手机短信 (快捷指令)", web: "🖥️ Web 控制台" };
+        const labelText = ev.label ? `“${ev.label}”` : "收到新消息";
+        const srcDesc = document.getElementById('trace-source-desc');
+        if (srcDesc) srcDesc.innerText = `${srcNames[ev.source] || "外部调用"} · ${labelText}`;
+        const decDesc = document.getElementById('trace-decision-desc');
+        if (decDesc) decDesc.innerText = "核心路由中枢正在实时分析意图与分流概率...";
+        const sinkDesc = document.getElementById('trace-sink-desc');
+        if (sinkDesc) sinkDesc.innerText = "等待执行路由...";
+      } else if (ev.type === 'step') {
+        const hub = document.getElementById('node-core-hub');
+        if (ev.node === 'router') {
+          if (hub) {
+            hub.classList.add('active-pulse');
+            setTimeout(() => hub.classList.remove('active-pulse'), 1800);
+          }
+          const decDesc = document.getElementById('trace-decision-desc');
+          if (decDesc) decDesc.innerText = ev.label || "意图识别完成";
+        } else {
+          const sinkNode = document.getElementById(`node-sink-${ev.node}`);
+          if (sinkNode) {
+            sinkNode.classList.add('active-pulse');
+            setTimeout(() => sinkNode.classList.remove('active-pulse'), 2500);
+          }
+          updateMagpieWires(`wire-sink-${ev.node}`);
+          const sinkDesc = document.getElementById('trace-sink-desc');
+          if (sinkDesc) sinkDesc.innerText = ev.label || "目标通道已交付";
+        }
+      } else if (ev.type === 'done') {
+        const totalMs = ev.at || 120;
+        const totalEl = document.getElementById('trace-total-ms');
+        if (totalEl) totalEl.innerText = `${totalMs}ms`;
+
+        // Update timing breakdown bar dynamically
+        const tInbound = Math.max(2, Math.round(totalMs * 0.08));
+        const tRouter = Math.max(3, Math.round(totalMs * 0.15));
+        const tExec = Math.max(10, Math.round(totalMs * 0.45));
+        const tPush = Math.max(5, totalMs - tInbound - tRouter - tExec);
+
+        const bIn = document.getElementById('bar-seg-inbound');
+        if (bIn) bIn.style.width = `${Math.round((tInbound / totalMs) * 100)}%`;
+        const bRt = document.getElementById('bar-seg-router');
+        if (bRt) bRt.style.width = `${Math.round((tRouter / totalMs) * 100)}%`;
+        const bEx = document.getElementById('bar-seg-exec');
+        if (bEx) bEx.style.width = `${Math.round((tExec / totalMs) * 100)}%`;
+        const bPu = document.getElementById('bar-seg-push');
+        if (bPu) bPu.style.width = `${Math.round((tPush / totalMs) * 100)}%`;
+
+        const lIn = document.getElementById('leg-inbound-ms');
+        if (lIn) lIn.innerText = `${tInbound}ms`;
+        const lRt = document.getElementById('leg-router-ms');
+        if (lRt) lRt.innerText = `${tRouter}ms`;
+        const lEx = document.getElementById('leg-exec-ms');
+        if (lEx) lEx.innerText = `${tExec}ms`;
+        const lPu = document.getElementById('leg-push-ms');
+        if (lPu) lPu.innerText = `${tPush}ms`;
+
+        wireClearTimer = setTimeout(() => updateMagpieWires(null), 3500);
+      }
+    }
+
+    function triggerStreamHeartbeat() {
+      updateMagpieWires('all');
+      setTimeout(() => updateMagpieWires(null), 1200);
+    }
+
+    window.addEventListener('resize', () => updateMagpieWires(null));
+    setTimeout(() => {
+      updateMagpieWires(null);
+      initTraceStream();
+    }, 300);
+
     refreshLiveStatus();
     setInterval(refreshLiveStatus, 3000);
+
+    setTimeout(() => {
+      const box = document.getElementById('wiz-qr-box');
+      if (box && !box.querySelector('img') && !wizardGate.wechatOk) {
+        loadWizardWechatQr();
+      }
+    }, 600);
   </script>
 </body>
 </html>

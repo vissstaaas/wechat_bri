@@ -1,0 +1,82 @@
+checkpoint idx 1447 of 4
+<summary>
+1. **Task Overview**
+   - **Core Request**: The user wants to evolve NoteBridge AI into **OmniBridge Core**, an enterprise-grade, multi-tenant, zero-knowledge intelligent data bus connecting inbound channels (WeChat ClawBot, TG, DingTalk, Feishu) to outbound sinks (Apple iCloud Notes, Drive, Photos, Notion, NAS).
+   - **Specific Current Bug**: The user scanned the WeChat QR code to log in, but the web page did not transition ("没反应过来") and the phone chat showed "暂无法连接 OpenClaw" with sent messages like "你好" receiving no response.
+   - **Scope Boundaries**:
+     - User explicitly requested creating a brand new directory (`d:\dev\ideas\omnibridge-core`) to refactor away from the messy 2000+ line single-file script in `wechat-notes-bridge`.
+     - WeChat integration must directly use the official open-source `weixin-agent-sdk` (no re-inventing/violating WeChat terms).
+     - Apple iCloud/CloudKit/Drive/Photos integrations must use self-contained, owned code based on reverse-engineered protocols (no external commercial wrapper entanglements).
+     - Security priority: **Zero-disk footprint (RAM-only streaming)**, multi-tenant isolation (`tenantId`), and real health probes (no false "online" state).
+     - Maintain full documentation (PRD, SAD, Security Whitepaper, README).
+
+2. **Progress**
+   - **Created New Directory & Structure**: `d:\dev\ideas\omnibridge-core`
+     - Built modules:
+       - `src/core/router/MessageEnvelope.js`: Standardized message envelope for all channels and sinks.
+       - `src/core/security/StreamSanitizer.js`: In-memory Magic Byte image inspector and RAM-only buffer wiping.
+       - `src/core/tenant/TenantManager.js`: Multi-tenant isolation sandbox (`TenantContext`).
+       - `src/channels/wechat/WechatProbe.js`: Active Tencent iLink probe with proper headers (`AuthorizationType: ilink_bot_token`, `iLink-App-Id: bot`, `iLink-App-ClientVersion: 1536`, `X-WECHAT-UIN`).
+       - `src/channels/wechat/WechatChannel.js`: QR code session lifecycle, Tencent long-polling, credential persistence (`.openclaw/openclaw-weixin`), and live ClawBot runtime initialization.
+       - `src/sinks/icloud/NotesService.js`: Owned CloudKit native image & attachment embedder (`Media` + `Attachment` records, `AttachmentViewType: 0`).
+       - `src/sinks/icloud/DriveService.js`: Owned CloudDocs streaming upload & directory retrieval.
+       - `src/sinks/icloud/IcloudProbe.js`: Apple iCloud session validator catching HTTP 421 / 401.
+       - `src/core/router/DualModeRouter.js`: <5ms fast intent classifier.
+       - `src/core/router/AgentService.js`: Dual-mode AI agent tool caller (DeepSeek/WorkBuddy).
+       - `src/app.js`: Clean HTTP server listening on `http://localhost:3090`.
+       - `public/index.html`: `typesafe.ai` industrial console UI connected to port 3090.
+   - **Documentation Completed & Committed**:
+     - `docs/PRD_REQUIREMENTS.md`: Product Requirements Document.
+     - `docs/ARCHITECTURE_DESIGN.md`: System Architecture Document.
+     - `docs/SECURITY_COMPLIANCE.md`: Zero-Trust Security & Compliance Whitepaper.
+     - `README.md`: Project overview and getting started guide.
+     - Committed to local Git in `d:\dev\ideas\omnibridge-core` (Commit `fc4de1e` and `69fd638`).
+
+3. **Key Findings & Diagnosis of the "没反应 / 暂无法连接 OpenClaw" Bug**
+   - **Why WeChat showed "暂无法连接 OpenClaw" on the phone**:
+     - In `omnibridge-core/src/channels/wechat/WechatChannel.js`, when Tencent iLink long-poll returned `status: "confirmed"`, it stored the token in memory and disk, but **it never called `start()` from `weixin-agent-sdk` to start the message receiving loop**!
+     - In `weixin-agent-sdk`, a bot only actually connects to the user on WeChat when `start({ chat: async (req) => ... })` is actively running. Without `start()`, Tencent iLink considers OpenClaw offline, displaying "暂无法连接 OpenClaw" at the top of the user's phone screen!
+     - **Fix Applied**: Added `startBotRuntime()` in `WechatChannel.js` which immediately invokes `start()` upon `confirmed` status (or on startup if already logged in).
+   - **Why the web page didn't transition to Step 2**:
+     - Frontend `public/index.html` had a guard `const justConnected = wizardGate.wechatSeen === false && connected;`. Because `wechatSeen` was initialized to `null`, `null === false` was `false`, failing to trigger `switchWizardStep(2)`.
+     - **Fix Applied**: Changed to `wizardGate.wechatSeen !== true && connected` in `public/index.html`.
+   - **Token Probe vs Active Long-Poll Conflict**:
+     - Calling `getupdates` with an empty `get_updates_buf` and short timeout in `WechatProbe` while `start()` is actively long-polling the same bot token can cause a timeout or conflict. `src/app.js` was updated so that when `wechatChan.botInstance` is active, `tenant.wechat.connected` is directly marked `true` and `status: "ONLINE"`.
+
+4. **Errors & Fixes**
+   - *Error*: `PowerShell mkdir -p` failed because PowerShell syntax does not support `-p` with multiple path arguments.
+     *Fix*: Used `New-Item -ItemType Directory -Force -Path ...` in PowerShell.
+   - *Error*: `npm install` was slow due to network mirrors.
+     *Fix*: Copied pre-installed `node_modules` from `wechat-notes-bridge` to `omnibridge-core`.
+   - *Error*: `WechatProbe` returned `NETWORK_ERROR: aborted due to timeout`.
+     *Root cause*: Tencent `getupdates` is a long-polling endpoint that holds the HTTP connection open until a message arrives or timeout.
+     *Fix*: Treated active running `botInstance` as primary online indicator; used `probeSession` only for initial pre-boot checks.
+   - *Error*: User's previous session showed `fcaf813cdd81@im.bot` with stale token `-14`.
+     *Fix*: Added `persistWeixinAccountCredentials` into `WechatChannel.js` so that when the user scans, the new bot credentials overwrite the stale ones in `~/.openclaw/openclaw-weixin/accounts/`.
+
+5. **Active Context**
+   - **Service Process**: `omnibridge-core` server running as background task `task-1445` (or daemon PID) on `http://localhost:3090`.
+   - **Ports in use**:
+     - Port `3090`: `omnibridge-core` (Active, new clean refactored server).
+     - Port `3080`: Old `wechat-notes-bridge` (Still has old process if needed, but work is transitioning to 3090).
+     - Port `3425`: WorkBuddy Local LLM server (Active).
+
+6. **Next Steps**
+   1. **Verify Live WeChat Connection on Port 3090**:
+      - Confirm `task-1445` is running without crashing.
+      - Have the user refresh `http://localhost:3090`, click "生成 / 刷新真实微信二维码", scan with WeChat, and confirm.
+      - Verify that `startBotRuntime()` starts, the user's phone status changes from "暂无法连接 OpenClaw" to connected, and sending "你好" receives the bot's intro/reply.
+      - Verify the page automatically switches to Step 2 (iCloud authorization).
+   2. **Wire Step 2 iCloud Login into `omnibridge-core`**:
+      - Port `bindNewFolderAccount` / `login-apple` flow into `src/sinks/icloud/` or as an API endpoint `/api/icloud/relogin` in `src/app.js` on port 3090.
+      - Ensure iCloud login status endpoint `/api/icloud/login/status` works with `IcloudProbe`.
+   3. **Wire Message Handling from WeChat to iCloud Notes & Drive**:
+      - When user sends a photo or text in WeChat, route through `WechatChannel.chat` -> `StreamSanitizer` (RAM-only) -> `NotesService.embedNativeImage` and `DriveService.uploadStream`.
+   4. **Push New `omnibridge-core` Repository to GitHub**:
+      - Either create a new GitHub repository (e.g., `vissstaaas/omnibridge-core`) or push as a major v3 refactor branch to `vissstaaas/wechat_icloude`.
+
+7. **Commitments & Constraints**
+   - Keep responses in concise Chinese.
+   - All code file links must be clickable Markdown links with `file:///` scheme and forward slashes.
+   - Maintain zero disk-drop privacy constraints (no saving incoming user images to server disk).
+</summary>

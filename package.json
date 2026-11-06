@@ -1,16 +1,14 @@
 {
-  "name": "wechat-notes-bridge",
+  "name": "omnibridge-core",
   "version": "1.0.0",
-  "description": "WeChat to Apple Notes Bridge via ClawBot",
+  "description": "Enterprise Multi-Tenant Zero-Knowledge Data Bus (WeChat, iCloud, and Beyond)",
   "type": "module",
-  "main": "server.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "node scripts/patch-icloud-cn.js",
-    "patch:icloud-cn": "node scripts/patch-icloud-cn.js"
+    "start": "node src/app.js"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.12.1",
+    "@bufbuild/protobuf": "^2.2.3",
     "icloud-md": "^0.6.2",
     "qrcode": "^1.5.4",
     "weixin-agent-sdk": "^0.6.0"

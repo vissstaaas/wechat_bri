@@ -1,0 +1,17 @@
+---
+apple-note-id: 1026A62B-24E9-45A2-B18E-1DFE748B5052
+---
+
+
+Nowadays, our society is rich in materials,so we face too many choices, most of uswant to possess more and more stuff.
+
+However, owning too much stuff will makeindividuals feel stressful, result in waste ofresources and cause environmentalpollution. Contrarily, the less stuff we own,the happier we will be, less is more.
+
+As we know, housing price is considerablyhigh in some Chinese major cities likeBeijing, Shanghai and so on at present.
+
+People in these cities borrow money from banks to get big houses, in return theyhave to work hard to repay the loan in along period of time. They have to become workaholics, their body suffers damagesin excess, even some of them die fromoverwork, obviously, people in big cities are stressful and unhappy. Big houses are unnecessary. Please have a look at your house, you may find a large number of available spaces, this is a waste of space. Apart from houses, there may be too manyclothes that been set aside in ourwardrobe. We often follow the trend to buyclothes, but we dress them just several times and take no notice of these old.
+
+fashioned clothes after a period of time.
+
+Such actions are just a waste of resourceson the earth. We used to go to work bybike or by bus, but today, people get cars for convenience. Automotive exhaustemissions have been the main cause of global warming which has been animportant environmental problem. The environment is changing irreversibly because of people's desire of possessing stuff. We can say that gains cannot makeup for losses.
+In a word, owning too much stuff is inadvisable.
